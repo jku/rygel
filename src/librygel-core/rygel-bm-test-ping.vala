@@ -62,14 +62,6 @@ internal class Rygel.BMTestPing : BMTest {
         base("Ping");
     }
 
-    public override void execute() {
-        stdout.printf("*Ping* execute()\n");
-    }
-
-    public override void cancel() {
-        stdout.printf("*Ping* cancel()\n");
-    }
-
     public bool init(string host, uint repeat_count, uint data_block_size,
                      uint dscp, uint32 interval_time_out) {
         stdout.printf("*Ping* init()\n");
