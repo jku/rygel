@@ -86,7 +86,7 @@ public class Rygel.BasicManagement : Service {
                                         (this.cancel_test_cb);
     }
 
-    private void add_test (BMTest bm_test) {
+    private void add_test_and_return_action (BMTest bm_test, ServiceAction action) {
         current_id++;
         bm_test.id = current_id.to_string ();
 
@@ -100,6 +100,22 @@ public class Rygel.BasicManagement : Service {
                  this.test_ids += "," + test.id;
              }
         }
+
+        /* TODO: decide if test should really execute now */
+
+        bm_test.execute.begin ((obj,res) => {
+            try {
+                bm_test.execute.end (res);
+            } catch (BMTestError e) {
+                /* already executing */
+            }
+            /* TODO Test is finished, now remove test from active test list */
+        });
+
+        action.set ("TestID",
+                        typeof (string),
+                        bm_test.id);
+        action.return ();
     }
 
     // Error out if 'TestID' is wrong
@@ -215,15 +231,7 @@ public class Rygel.BasicManagement : Service {
         }
 
         // test_id to be added to TestIDs and ActiveTestID
-        this.add_test (ping as BMTest);
-
-        ping.execute ();
-
-        action.set ("TestID",
-                        typeof (string),
-                        ping.id);
-
-        action.return ();
+        this.add_test_and_return_action (ping as BMTest, action);
     }
 
     private void ping_result_cb (Service             cm,
@@ -302,23 +310,16 @@ public class Rygel.BasicManagement : Service {
                         typeof (string),
                         out interval_time_out);
 
+
         BMTestNSLookup nslookup = new BMTestNSLookup();
-        if (!nslookup.init (hostname, dns_server, repeat_count,
-                            interval_time_out)) {
+        try {
+            nslookup.init (hostname, dns_server,
+                           repeat_count, interval_time_out);
+
+            this.add_test_and_return_action (nslookup as BMTest, action);
+        } catch (BMTestError e) {
             action.return_error (402, _("Invalid argument"));
-
-            return;
         }
-
-        this.add_test (nslookup as BMTest);
-
-        nslookup.execute ();
-
-        action.set ("TestID",
-                        typeof (string),
-                        nslookup.id);
-
-        action.return ();
     }
 
     private void nslookup_result_cb (Service             cm,
@@ -395,15 +396,7 @@ public class Rygel.BasicManagement : Service {
             return;
         }
 
-        this.add_test (traceroute as BMTest);
-
-        traceroute.execute ();
-
-        action.set ("TestID",
-                        typeof (string),
-                        traceroute.id);
-
-        action.return ();
+        this.add_test_and_return_action (traceroute as BMTest, action);
     }
 
     private void traceroute_result_cb (Service             cm,
@@ -512,7 +505,11 @@ public class Rygel.BasicManagement : Service {
             return;
         }
 
-        bm_test.cancel();
+        try {
+            bm_test.cancel();
+        } catch (BMTestError e) {
+            warning ("Canceled test was not running\n");
+        }
 
         action.return ();
     }

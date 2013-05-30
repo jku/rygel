@@ -58,14 +58,6 @@ internal class Rygel.BMTestTraceroute : BMTest {
         base("Traceroute");
     }
 
-    public override void execute() {
-        stdout.printf("*Traceroute* execute()\n");
-    }
-
-    public override void cancel() {
-        stdout.printf("*Traceroute* cancel()\n");
-    }
-
     public bool init(string host, uint32 wait_time_out, uint data_block_size,
                      uint max_hop_count, uint dscp) {
         stdout.printf("*Traceroute* init()\n");
