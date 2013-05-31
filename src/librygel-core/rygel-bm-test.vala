@@ -68,6 +68,7 @@ internal abstract class Rygel.BMTest : Object {
     protected string[] command;
     protected uint repetitions;
 
+    private uint eof_count;
     private int std_out;
     private int std_err;
     private Pid child_pid;
@@ -110,6 +111,7 @@ internal abstract class Rygel.BMTest : Object {
     private void run_iteration () {
         try {
             init_iteration ();
+            eof_count = 0;
             Process.spawn_async_with_pipes (null,
                                             command,
                                             null,
@@ -142,7 +144,9 @@ internal abstract class Rygel.BMTest : Object {
                 handle_output (line);
 
             if (status == IOStatus.EOF) {
-                finish_iteration ();
+                eof_count++;
+                if (eof_count > 1)
+                    finish_iteration ();
                 return false;
             }
         } catch (Error e) {
@@ -161,10 +165,17 @@ internal abstract class Rygel.BMTest : Object {
             IOStatus status = channel.read_line (out line, null, null);
             if (line != null)
                 handle_error (line);
-            if (status == IOStatus.EOF)
+
+            if (status == IOStatus.EOF) {
+                eof_count++;
+                if (eof_count > 1)
+                    finish_iteration ();
                 return false;
+            }
         } catch (Error e) {
             warning ("Failed readline() from nslookup stderr: %s", e.message);
+            /* TODO set execution_state ? */
+            finish_iteration();
             return false;
         }
 
