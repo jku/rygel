@@ -153,6 +153,7 @@ internal class Rygel.BMTestNSLookup : BMTest {
 
     private Result[] results;
     private GenericStatus generic_status;
+    private string additional_info;
     private Timer timer = new Timer ();
 
     public BMTestNSLookup() {
@@ -200,8 +201,19 @@ internal class Rygel.BMTestNSLookup : BMTest {
     }
 
     protected override void finish_iteration () {
-        var execution_time = (uint)Math.round(timer.elapsed (null) * 1000);
-        results[results.length - 1].execution_time = execution_time;
+        switch (execution_state) {
+            case ExecutionState.RUNNING:
+                var execution_time = (uint)Math.round(timer.elapsed (null) * 1000);
+                results[results.length - 1].execution_time = execution_time;
+                break;
+            case ExecutionState.SPAWN_FAILED:
+                generic_status = GenericStatus.ERROR_INTERNAL;
+                additional_info = "Failed spawn nslookup";
+                results[results.length - 1].status = ResultStatus.ERROR_OTHER;
+                break;
+            default:
+                break;
+        }
 
         base.finish_iteration ();
     }

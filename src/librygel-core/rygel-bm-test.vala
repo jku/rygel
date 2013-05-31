@@ -30,11 +30,18 @@ internal errordomain Rygel.BMTestError {
 }
 
 internal abstract class Rygel.BMTest : Object {
+    protected enum ExecutionState {
+        IDLE,
+        RUNNING,
+        CANCELED,
+        SPAWN_FAILED,
+    }
+
     public string type;
     public string state;
     public string id;
 
-    public bool executing { private set; get; default = false; }
+    protected ExecutionState execution_state;
 
     /* properties for implementations to access */
     protected SpawnFlags flags = SpawnFlags.SEARCH_PATH |
@@ -55,7 +62,6 @@ internal abstract class Rygel.BMTest : Object {
      *    - init_iteration()
      *    - calls to handle_output() and handle_error(),
      *    - finish_iteration()
-     * - then finish() 
      */
     protected virtual void init_iteration () {}
     protected virtual void handle_output (string line) {}
@@ -64,14 +70,15 @@ internal abstract class Rygel.BMTest : Object {
     }
     protected virtual void finish_iteration () {
         iteration++;
-        if (iteration < repetitions) {
-            run_iteration ();
-        } else {
+        if (execution_state != ExecutionState.RUNNING) {
             async_callback ();
+        } else if (iteration >= repetitions) {
+            execution_state = ExecutionState.IDLE;
+            async_callback ();
+        } else {
+            run_iteration ();
         }
     }
-    protected virtual void finish (bool canceled) {}
-
         
     private void child_setup () {
         /* try to prevent possible changes in output */
@@ -104,8 +111,9 @@ internal abstract class Rygel.BMTest : Object {
             err_channel.add_watch (IOCondition.OUT | IOCondition.HUP,
                                    err_watch);
         } catch (SpawnError e) {
-            /* TODO cancel all iterations and let the implementation know
-             * we failed to spawn */
+            /* Let the async function yeild, then error out */
+            execution_state = ExecutionState.SPAWN_FAILED;
+            Idle.add ((SourceFunc)finish_iteration);
         }
     }
 
@@ -122,6 +130,7 @@ internal abstract class Rygel.BMTest : Object {
             }
         } catch (Error e) {
             warning ("Failed readline() from nslookup stdout: %s", e.message);
+            /* TODO set execution_state ? */
             finish_iteration();
             return false;
         }
@@ -152,26 +161,23 @@ internal abstract class Rygel.BMTest : Object {
         this.id = null;
     }
 
-    public async void execute () throws BMTestError {
-        if (executing)
+    public async virtual void execute () throws BMTestError {
+        if (execution_state == ExecutionState.RUNNING)
             throw new BMTestError.NOT_POSSIBLE ("Already executing");
 
-        executing = true;
+        execution_state = ExecutionState.RUNNING;
         canceled = false;
         iteration = 0;
+        async_callback = execute.callback;
 
         run_iteration ();
-
-        async_callback = execute.callback;
         yield;
 
-        executing = false;
-        finish (canceled);
-        return ;
+        return;
     }
 
     public void cancel () throws BMTestError {
-        if (!executing)
+        if (execution_state != ExecutionState.RUNNING)
             throw new BMTestError.NOT_POSSIBLE ("Not executing"); 
 
         Posix.killpg (child_pid, Posix.SIGTERM);
