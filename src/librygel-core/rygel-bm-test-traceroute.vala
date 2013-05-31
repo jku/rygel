@@ -54,9 +54,8 @@ internal class Rygel.BMTestTraceroute : BMTest {
     private static const uint TRACEROUTE_MAX_HOSTS = 2048;
     private static const uint TRACEROUTE_MAX_RESULT_SIZE = 4;
 
-    public BMTestTraceroute() {
-        base("Traceroute");
-    }
+    public override string method_type { get { return "Traceroute"; } }
+    public override string results_type { get { return "GetTracerouteResult"; } }
 
     public bool init(string host, uint32 wait_time_out, uint data_block_size,
                      uint max_hop_count, uint dscp) {

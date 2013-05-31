@@ -142,7 +142,7 @@ public class Rygel.BasicManagement : Service {
             return false;
         } else if ((action.get_name() != "CancelTest") &&
                    (action.get_name() != "GetTestInfo") &&
-                   (bm_test.type != action.get_name())) {
+                   (bm_test.results_type != action.get_name())) {
             // TestID is valid but refers to the wrong test type
             action.return_error (707, _("Wrong Test Type"));
 
@@ -483,7 +483,7 @@ public class Rygel.BasicManagement : Service {
 
         action.set ("Type",
                         typeof (string),
-                        bm_test.type,
+                        bm_test.method_type,
                     "State",
                         typeof (string),
                         bm_test.execution_state.to_string());
