@@ -156,10 +156,8 @@ internal class Rygel.BMTestNSLookup : BMTest {
     private string additional_info;
     private Timer timer = new Timer ();
 
-    public BMTestNSLookup() {
-        base("NSLookup");
-    }
-
+    public override string method_type { get { return "NSLookup"; } }
+    public override string results_type { get { return "GetNSLookupResult"; } }
 
     public void init(string host_name, string? name_server, uint repetitions,
                      uint32 interval_time_out) throws BMTestError {
@@ -276,7 +274,6 @@ internal class Rygel.BMTestNSLookup : BMTest {
         status = generic_status.to_string();
         additional_info = "";
     }
-
 /*
     //valac --pkg gio-2.0 --pkg posix -X -lm  rygel-bm-test-nslookup.vala rygel-bm-test.vala
 

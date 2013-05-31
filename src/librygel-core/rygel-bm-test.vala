@@ -56,9 +56,11 @@ internal abstract class Rygel.BMTest : Object {
         }
     }
     public ExecutionState execution_state;
-    public string type;
     public string id;
 
+    /* properties implementations need to provide */
+    public abstract string method_type { get; }
+    public abstract string results_type { get; }
 
     /* properties for implementations to access */
     protected SpawnFlags flags = SpawnFlags.SEARCH_PATH |
@@ -170,8 +172,7 @@ internal abstract class Rygel.BMTest : Object {
     }
 
 
-    public BMTest(string type) {
-        this.type = type;
+    public BMTest() {
         this.execution_state = ExecutionState.REQUESTED;
         this.id = null;
     }
