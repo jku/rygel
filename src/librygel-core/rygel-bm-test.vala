@@ -30,18 +30,35 @@ internal errordomain Rygel.BMTestError {
 }
 
 internal abstract class Rygel.BMTest : Object {
-    protected enum ExecutionState {
-        IDLE,
-        RUNNING,
-        CANCELED,
+    public enum ExecutionState {
+        REQUESTED,
+        IN_PROGRESS,
+        COMPLETED,
         SPAWN_FAILED,
-    }
+        CANCELED;
 
+        /* Return values fit for A_ARG_TYPE_TestState */
+        public string to_string () { 
+            switch (this) {
+                case REQUESTED:
+                    return "Requested";
+                case IN_PROGRESS:
+                    return "InProgress";
+                case COMPLETED:
+                    return "Completed";
+                case SPAWN_FAILED:
+                    return "Completed";
+                case CANCELED:
+                    return "Canceled";
+                default:
+                    assert_not_reached ();
+            }
+        }
+    }
+    public ExecutionState execution_state;
     public string type;
-    public string state;
     public string id;
 
-    protected ExecutionState execution_state;
 
     /* properties for implementations to access */
     protected SpawnFlags flags = SpawnFlags.SEARCH_PATH |
@@ -68,10 +85,10 @@ internal abstract class Rygel.BMTest : Object {
     }
     protected virtual void finish_iteration () {
         iteration++;
-        if (execution_state != ExecutionState.RUNNING) {
+        if (execution_state != ExecutionState.IN_PROGRESS) {
             async_callback ();
         } else if (iteration >= repetitions) {
-            execution_state = ExecutionState.IDLE;
+            execution_state = ExecutionState.COMPLETED;
             async_callback ();
         } else {
             run_iteration ();
@@ -155,15 +172,15 @@ internal abstract class Rygel.BMTest : Object {
 
     public BMTest(string type) {
         this.type = type;
-        this.state = "Requested";
+        this.execution_state = ExecutionState.REQUESTED;
         this.id = null;
     }
 
     public async virtual void execute () throws BMTestError {
-        if (execution_state == ExecutionState.RUNNING)
-            throw new BMTestError.NOT_POSSIBLE ("Already executing");
+        if (execution_state != ExecutionState.REQUESTED)
+            throw new BMTestError.NOT_POSSIBLE ("Already executing or executed");
 
-        execution_state = ExecutionState.RUNNING;
+        execution_state = ExecutionState.IN_PROGRESS;
         iteration = 0;
         async_callback = execute.callback;
 
@@ -174,7 +191,7 @@ internal abstract class Rygel.BMTest : Object {
     }
 
     public void cancel () throws BMTestError {
-        if (execution_state != ExecutionState.RUNNING)
+        if (execution_state != ExecutionState.IN_PROGRESS)
             throw new BMTestError.NOT_POSSIBLE ("Not executing"); 
 
         Posix.killpg (child_pid, Posix.SIGTERM);

@@ -148,7 +148,7 @@ public class Rygel.BasicManagement : Service {
 
             return false;
         } else if ((action.get_name() != "GetTestInfo") &&
-                   (bm_test.state != "Completed")) {
+                   (bm_test.execution_state != BMTest.ExecutionState.COMPLETED)) {
             // TestID is valid but the test Results are not available
             action.return_error (708, _("Invalid Test State"));
 
@@ -486,7 +486,7 @@ public class Rygel.BasicManagement : Service {
                         bm_test.type,
                     "State",
                         typeof (string),
-                        bm_test.state);
+                        bm_test.execution_state.to_string());
 
         action.return ();
     }
