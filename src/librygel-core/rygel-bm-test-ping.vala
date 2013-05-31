@@ -58,9 +58,8 @@ internal class Rygel.BMTestPing : BMTest {
     private static const uint PING_MAX_STATUS_STR_SIZE = 32;
     private static const uint PING_MAX_RESULT_ARRAY_SIZE = 7;
 
-    public BMTestPing() {
-        base("Ping");
-    }
+    public override string method_type { get { return "Ping"; } }
+    public override string results_type { get { return "GetPingResult"; } }
 
     public bool init(string host, uint repeat_count, uint data_block_size,
                      uint dscp, uint32 interval_time_out) {
