@@ -47,7 +47,6 @@ internal abstract class Rygel.BMTest : Object {
     protected SpawnFlags flags = SpawnFlags.SEARCH_PATH |
                                  SpawnFlags.LEAVE_DESCRIPTORS_OPEN;
     protected string[] command;
-    protected uint execution_time { private set; get; default = 0; } 
     protected uint repetitions;
 
     private int std_out;
