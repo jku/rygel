@@ -53,7 +53,6 @@ internal abstract class Rygel.BMTest : Object {
     private int std_err;
     private Pid child_pid;
     private SourceFunc async_callback;
-    private bool canceled;
     private uint iteration;
 
     /* These virtual/abstract functions will be called from execute():
@@ -165,7 +164,6 @@ internal abstract class Rygel.BMTest : Object {
             throw new BMTestError.NOT_POSSIBLE ("Already executing");
 
         execution_state = ExecutionState.RUNNING;
-        canceled = false;
         iteration = 0;
         async_callback = execute.callback;
 
@@ -181,6 +179,6 @@ internal abstract class Rygel.BMTest : Object {
 
         Posix.killpg (child_pid, Posix.SIGTERM);
 
-        canceled = true;
+        execution_state = ExecutionState.CANCELED;
     }
 }
