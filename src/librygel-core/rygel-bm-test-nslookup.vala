@@ -202,7 +202,7 @@ internal class Rygel.BMTestNSLookup : BMTest {
 
     protected override void finish_iteration () {
         switch (execution_state) {
-            case ExecutionState.RUNNING:
+            case ExecutionState.IN_PROGRESS:
                 var execution_time = (uint)Math.round(timer.elapsed (null) * 1000);
                 results[results.length - 1].execution_time = execution_time;
                 break;
