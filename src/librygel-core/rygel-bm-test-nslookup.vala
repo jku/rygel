@@ -200,20 +200,31 @@ internal class Rygel.BMTestNSLookup : BMTest {
 
     protected override void finish_iteration () {
         switch (execution_state) {
-            case ExecutionState.IN_PROGRESS:
-                var execution_time = (uint)Math.round(timer.elapsed (null) * 1000);
-                results[results.length - 1].execution_time = execution_time;
-                break;
             case ExecutionState.SPAWN_FAILED:
                 generic_status = GenericStatus.ERROR_INTERNAL;
                 additional_info = "Failed spawn nslookup";
                 results[results.length - 1].status = ResultStatus.ERROR_OTHER;
                 break;
             default:
+                var execution_time = (uint)Math.round(timer.elapsed (null) * 1000);
+                results[results.length - 1].execution_time = execution_time;
                 break;
         }
 
         base.finish_iteration ();
+    }
+
+    protected override void handle_error (string line) {
+        var result = results[results.length - 1];
+
+        if (line.contains ("couldn't get address for")) {
+            generic_status = GenericStatus.ERROR_DNS_SERVER_NOT_RESOLVED;
+            result.status = ResultStatus.ERROR_DNS_SERVER_NOT_AVAILABLE;
+            execution_state = ExecutionState.COMPLETED;
+        }
+
+        /* there has to be a nicer way to do this... */
+        results[results.length - 1] = result;
     }
 
     protected override void handle_output (string line) {
@@ -248,7 +259,7 @@ internal class Rygel.BMTestNSLookup : BMTest {
         } else if (line.contains ("couldn't get address for")) {
             generic_status = GenericStatus.ERROR_DNS_SERVER_NOT_RESOLVED;
             result.status = ResultStatus.ERROR_DNS_SERVER_NOT_AVAILABLE;
-            /* TODO should cancel here: future iterations won't help */
+            execution_state = ExecutionState.COMPLETED;
         } else if (line.contains ("no servers could be reached")) {
             result.status = ResultStatus.ERROR_DNS_SERVER_NOT_AVAILABLE;
         }
