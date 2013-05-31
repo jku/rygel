@@ -304,12 +304,11 @@ public class Rygel.BasicManagement : Service {
                         typeof (string),
                         out dns_server,
                     "NumberOfRepetitions",
-                        typeof (string),
+                        typeof (uint),
                         out repeat_count,
                     "Timeout",
-                        typeof (string),
+                        typeof (uint32),
                         out interval_time_out);
-
 
         BMTestNSLookup nslookup = new BMTestNSLookup();
         try {
