@@ -1,10 +1,8 @@
 /*
- * Copyright (C) 2008 OpenedHand Ltd.
- * Copyright (C) 2008 Zeeshan Ali <zeenix@gmail.com>.
  * Copyright (C) 2013 Intel Corporation.
  *
- * Author: Jorn Baayen <jorn@openedhand.com>
- *         Zeeshan Ali <zeenix@gmail.com>
+ * Author: Christophe Guiraud,
+ *         Jussi Kukkonen
  *
  * This file is part of Rygel.
  *
@@ -25,8 +23,8 @@
 
 using GLib;
 
-// Helper class for BMTestPing.
-internal class Rygel.BMTestPing : BMTest {
+// Helper class for BasicManagementTestPing.
+internal class Rygel.BasicManagementTestPing : BasicManagementTest {
 
     private string host;
     private uint repeat_count;
