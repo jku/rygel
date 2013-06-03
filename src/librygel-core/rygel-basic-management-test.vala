@@ -89,14 +89,14 @@ internal abstract class Rygel.BasicManagementTest : Object {
         warning ("%s stderr: %s", command[0], line);
     }
     protected virtual void finish_iteration () {
-        iteration++;
+        this.iteration++;
         if (this.execution_state != ExecutionState.IN_PROGRESS) {
-            async_callback ();
-        } else if (iteration >= repetitions) {
+            this.async_callback ();
+        } else if (this.iteration >= this.repetitions) {
             this.execution_state = ExecutionState.COMPLETED;
-            async_callback ();
+            this.async_callback ();
         } else {
-            run_iteration ();
+            this.run_iteration ();
         }
     }
         
@@ -112,29 +112,29 @@ internal abstract class Rygel.BasicManagementTest : Object {
 
     private void run_iteration () {
         try {
-            init_iteration ();
-            eof_count = 0;
+            this.init_iteration ();
+            this.eof_count = 0;
             Process.spawn_async_with_pipes (null,
-                                            command,
+                                            this.command,
                                             null,
-                                            flags,
-                                            child_setup,
-                                            out child_pid,
+                                            this.flags,
+                                            this.child_setup,
+                                            out this.child_pid,
                                             null,
-                                            out std_out,
-                                            out std_err);
+                                            out this.std_out,
+                                            out this.std_err);
 
             var out_channel = new IOChannel.unix_new (std_out);
             out_channel.add_watch (IOCondition.OUT | IOCondition.HUP,
-                                   out_watch);
+                                   this.out_watch);
 
             var err_channel = new IOChannel.unix_new (std_err);
             err_channel.add_watch (IOCondition.OUT | IOCondition.HUP,
-                                   err_watch);
+                                   this.err_watch);
         } catch (SpawnError e) {
             /* Let the async function yeild, then error out */
             this.execution_state = ExecutionState.SPAWN_FAILED;
-            Idle.add ((SourceFunc)finish_iteration);
+            Idle.add ((SourceFunc)this.finish_iteration);
         }
     }
 
@@ -143,18 +143,20 @@ internal abstract class Rygel.BasicManagementTest : Object {
             string line;
             IOStatus status = channel.read_line (out line, null, null);
             if (line != null)
-                handle_output (line);
+                this.handle_output (line);
 
             if (status == IOStatus.EOF) {
-                eof_count++;
-                if (eof_count > 1)
-                    finish_iteration ();
+                this.eof_count++;
+                if (this.eof_count > 1)
+                    this.finish_iteration ();
+
                 return false;
             }
         } catch (Error e) {
             warning ("Failed readline() from nslookup stdout: %s", e.message);
             /* TODO set execution_state ? */
-            finish_iteration();
+            this.finish_iteration();
+
             return false;
         }
 
@@ -166,18 +168,20 @@ internal abstract class Rygel.BasicManagementTest : Object {
             string line;
             IOStatus status = channel.read_line (out line, null, null);
             if (line != null)
-                handle_error (line);
+                this.handle_error (line);
 
             if (status == IOStatus.EOF) {
-                eof_count++;
-                if (eof_count > 1)
-                    finish_iteration ();
+                this.eof_count++;
+                if (this.eof_count > 1)
+                    this.finish_iteration ();
+
                 return false;
             }
         } catch (Error e) {
             warning ("Failed readline() from nslookup stderr: %s", e.message);
             /* TODO set execution_state ? */
-            finish_iteration();
+            this.finish_iteration();
+
             return false;
         }
 
@@ -196,10 +200,10 @@ internal abstract class Rygel.BasicManagementTest : Object {
                                                 ("Already executing or executed");
 
         this.execution_state = ExecutionState.IN_PROGRESS;
-        iteration = 0;
-        async_callback = execute.callback;
+        this.iteration = 0;
+        this.async_callback = execute.callback;
 
-        run_iteration ();
+        this.run_iteration ();
         yield;
 
         return;
@@ -209,7 +213,7 @@ internal abstract class Rygel.BasicManagementTest : Object {
         if (this.execution_state != ExecutionState.IN_PROGRESS)
             throw new BasicManagementTestError.NOT_POSSIBLE ("Not executing");
 
-        Posix.killpg (child_pid, Posix.SIGTERM);
+        Posix.killpg (this.child_pid, Posix.SIGTERM);
 
         this.execution_state = ExecutionState.CANCELED;
     }
