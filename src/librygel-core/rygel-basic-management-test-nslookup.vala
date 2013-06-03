@@ -23,7 +23,7 @@
 
 using GLib;
 
-internal class Rygel.BMTestNSLookup : BMTest {
+internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
     private const string HEADER =
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
         "<bms:NSLookupResult " +
@@ -160,7 +160,7 @@ internal class Rygel.BMTestNSLookup : BMTest {
     public override string results_type { get { return "GetNSLookupResult"; } }
 
     public void init(string host_name, string? name_server, uint repetitions,
-                     uint32 interval_time_out) throws BMTestError {
+                     uint32 interval_time_out) throws BasicManagementTestError {
         command = { "nslookup" };
         generic_status = GenericStatus.ERROR_INTERNAL;
         results = {};
@@ -174,7 +174,8 @@ internal class Rygel.BMTestNSLookup : BMTest {
         command += ("-timeout=%u").printf (interval_time_out/1000);
 
         if (host_name == null || host_name.length < 1)
-            throw new BMTestError.INIT_FAILED ("Host name is required"); 
+            throw new BasicManagementTestError.INIT_FAILED
+                                                ("Host name is required");
         command += host_name;
 
         if (name_server != null && name_server.length > 0)
@@ -199,7 +200,7 @@ internal class Rygel.BMTestNSLookup : BMTest {
     }
 
     protected override void finish_iteration () {
-        switch (execution_state) {
+        switch (this.execution_state) {
             case ExecutionState.SPAWN_FAILED:
                 generic_status = GenericStatus.ERROR_INTERNAL;
                 additional_info = "Failed spawn nslookup";
@@ -220,7 +221,7 @@ internal class Rygel.BMTestNSLookup : BMTest {
         if (line.contains ("couldn't get address for")) {
             generic_status = GenericStatus.ERROR_DNS_SERVER_NOT_RESOLVED;
             result.status = ResultStatus.ERROR_DNS_SERVER_NOT_AVAILABLE;
-            execution_state = ExecutionState.COMPLETED;
+            this.execution_state = ExecutionState.COMPLETED;
         }
 
         /* there has to be a nicer way to do this... */
@@ -259,7 +260,7 @@ internal class Rygel.BMTestNSLookup : BMTest {
         } else if (line.contains ("couldn't get address for")) {
             generic_status = GenericStatus.ERROR_DNS_SERVER_NOT_RESOLVED;
             result.status = ResultStatus.ERROR_DNS_SERVER_NOT_AVAILABLE;
-            execution_state = ExecutionState.COMPLETED;
+            this.execution_state = ExecutionState.COMPLETED;
         } else if (line.contains ("no servers could be reached")) {
             result.status = ResultStatus.ERROR_DNS_SERVER_NOT_AVAILABLE;
         }
@@ -290,7 +291,7 @@ internal class Rygel.BMTestNSLookup : BMTest {
 
     private static int main(string[] args) {
         MainLoop loop = new MainLoop();
-        BMTestNSLookup nslookup = new BMTestNSLookup ();
+        BasicManagementTestNSLookup nslookup = new BasicManagementTestNSLookup ();
 
         if (args.length < 2) {
             print ("Usage: %s <hostname> [<nameserver> [<repetitions> [<timeout>]]]\n", args[0]);
@@ -302,7 +303,7 @@ internal class Rygel.BMTestNSLookup : BMTest {
                            args.length > 2 ? args[2] : null,
                            args.length > 3 ? int.parse (args[3]): 0,
                            args.length > 4 ? int.parse (args[4]) : 0);
-        } catch (BMTestError e) {
+        } catch (BasicManagementTestError e) {
             warning ("Incorrect parameters");
         }
 
