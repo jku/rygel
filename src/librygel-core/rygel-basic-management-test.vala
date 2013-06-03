@@ -2,7 +2,7 @@
  * Copyright (C) 2013 Intel Corporation.
  *
  * Author: Christophe Guiraud,
- *         Jussi Kukkonen 
+ *         Jussi Kukkonen
  *
  * This file is part of Rygel.
  *
@@ -24,12 +24,12 @@
 using GLib;
 
 
-internal errordomain Rygel.BMTestError {
+internal errordomain Rygel.BasicManagementTestError {
     NOT_POSSIBLE,
     INIT_FAILED,
 }
 
-internal abstract class Rygel.BMTest : Object {
+internal abstract class Rygel.BasicManagementTest : Object {
     public enum ExecutionState {
         REQUESTED,
         IN_PROGRESS,
@@ -55,7 +55,9 @@ internal abstract class Rygel.BMTest : Object {
             }
         }
     }
+
     public ExecutionState execution_state;
+    
     public string id;
 
     /* properties implementations need to provide */
@@ -88,10 +90,10 @@ internal abstract class Rygel.BMTest : Object {
     }
     protected virtual void finish_iteration () {
         iteration++;
-        if (execution_state != ExecutionState.IN_PROGRESS) {
+        if (this.execution_state != ExecutionState.IN_PROGRESS) {
             async_callback ();
         } else if (iteration >= repetitions) {
-            execution_state = ExecutionState.COMPLETED;
+            this.execution_state = ExecutionState.COMPLETED;
             async_callback ();
         } else {
             run_iteration ();
@@ -131,7 +133,7 @@ internal abstract class Rygel.BMTest : Object {
                                    err_watch);
         } catch (SpawnError e) {
             /* Let the async function yeild, then error out */
-            execution_state = ExecutionState.SPAWN_FAILED;
+            this.execution_state = ExecutionState.SPAWN_FAILED;
             Idle.add ((SourceFunc)finish_iteration);
         }
     }
@@ -183,16 +185,17 @@ internal abstract class Rygel.BMTest : Object {
     }
 
 
-    public BMTest() {
+    public BasicManagementTest() {
         this.execution_state = ExecutionState.REQUESTED;
         this.id = null;
     }
 
-    public async virtual void execute () throws BMTestError {
-        if (execution_state != ExecutionState.REQUESTED)
-            throw new BMTestError.NOT_POSSIBLE ("Already executing or executed");
+    public async virtual void execute () throws BasicManagementTestError {
+        if (this.execution_state != ExecutionState.REQUESTED)
+            throw new BasicManagementTestError.NOT_POSSIBLE
+                                                ("Already executing or executed");
 
-        execution_state = ExecutionState.IN_PROGRESS;
+        this.execution_state = ExecutionState.IN_PROGRESS;
         iteration = 0;
         async_callback = execute.callback;
 
@@ -202,12 +205,12 @@ internal abstract class Rygel.BMTest : Object {
         return;
     }
 
-    public void cancel () throws BMTestError {
-        if (execution_state != ExecutionState.IN_PROGRESS)
-            throw new BMTestError.NOT_POSSIBLE ("Not executing"); 
+    public void cancel () throws BasicManagementTestError {
+        if (this.execution_state != ExecutionState.IN_PROGRESS)
+            throw new BasicManagementTestError.NOT_POSSIBLE ("Not executing");
 
         Posix.killpg (child_pid, Posix.SIGTERM);
 
-        execution_state = ExecutionState.CANCELED;
+        this.execution_state = ExecutionState.CANCELED;
     }
 }
