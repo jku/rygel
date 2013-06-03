@@ -1,10 +1,8 @@
 /*
- * Copyright (C) 2008 OpenedHand Ltd.
- * Copyright (C) 2008 Zeeshan Ali <zeenix@gmail.com>.
  * Copyright (C) 2013 Intel Corporation.
  *
- * Author: Jorn Baayen <jorn@openedhand.com>
- *         Zeeshan Ali <zeenix@gmail.com>
+ * Author: Christophe Guiraud,
+ *         Jussi Kukkonen
  *
  * This file is part of Rygel.
  *
@@ -36,24 +34,23 @@ public class Rygel.BasicManagement : Service {
                         "urn:schemas-upnp-org:service:BasicManagement:2";
     public const string DESCRIPTION_PATH = "xml/BasicManagement2.xml";
 
-    private LinkedList<BMTest> tests_list;
-    private LinkedList<BMTest> active_tests_list;
+    private HashMap<string, BasicManagementTest> tests_map;
+    private HashMap<string, BasicManagementTest> active_tests_map;
 
     private static uint current_id = 0;
 
     protected string device_status;
-    protected string test_ids;
-    protected string active_test_ids;
 
     public override void constructed () {
         base.constructed ();
 
-        this.tests_list = new LinkedList<BMTest> ();
-        this.active_tests_list = new LinkedList<BMTest> ();
+        this.tests_map = new HashMap<string, BasicManagementTest> ();
+        this.active_tests_map = new HashMap<string, BasicManagementTest> ();
 
-        this.device_status   = "OK,2009-06-15T12:00:00,Details";
-        this.test_ids        = "";
-        this.active_test_ids = "";
+        var now = TimeVal ();
+        now.tv_usec = 0;
+
+        this.device_status = "OK," + now.to_iso8601 ();
 
         this.query_variable["DeviceStatus"].connect
                                         (this.query_device_status_cb);
@@ -86,27 +83,68 @@ public class Rygel.BasicManagement : Service {
                                         (this.cancel_test_cb);
     }
 
-    private void add_test_and_return_action (BMTest bm_test, ServiceAction action) {
+    private string create_test_ids_list (bool active) {
+        string test_ids_list = "";
+        HashMap<string, BasicManagementTest> test_map;
+
+        if (active) {
+            test_map = this.active_tests_map;
+        } else {
+            test_map = this.tests_map;
+        }
+
+        foreach (string key in test_map.keys) {
+            if (test_ids_list == "") {
+                test_ids_list = key;
+            } else {
+                test_ids_list += "," + key;
+            }
+        }
+
+        return test_ids_list;
+    }
+
+    private void update_test_ids_lists (BasicManagementTest bm_test) {
+        BasicManagementTest.ExecutionState execState = bm_test.execState;
+
+        if (execState == BasicManagementTest.ExecutionState.REQUESTED) {
+            this.tests_map.set (bm_test.id, bm_test);
+            this.notify ("TestIDs", typeof (string),
+                         create_test_ids_list (false));
+
+            this.active_tests_map.set (bm_test.id, bm_test);
+            this.notify ("ActiveTestIDs", typeof (string),
+                         create_test_ids_list (true));
+        } else if ((execState == BasicManagementTest.ExecutionState.CANCELED) ||
+                   (execState == BasicManagementTest.ExecutionState.COMPLETED) ||
+                   (execState == BasicManagementTest.ExecutionState.SPAWN_FAILED)) {
+            this.active_tests_map.unset (bm_test.id);
+            this.notify ("ActiveTestIDs", typeof (string),
+                         create_test_ids_list (true));
+        }
+    }
+
+    private void notify_test_exec_state_changed_cb (Object object,
+                                                         ParamSpec p) {
+        update_test_ids_lists (object as BasicManagementTest);
+    }
+
+    private void add_test_and_return_action (BasicManagementTest bm_test,
+                                             ServiceAction action) {
         current_id++;
+
         bm_test.id = current_id.to_string ();
 
-        this.tests_list.add (bm_test);
+        update_test_ids_lists (bm_test);
 
-        this.test_ids = "";
-        foreach (BMTest test in this.tests_list) {
-             if (this.test_ids == "") {
-                 this.test_ids = test.id;
-             } else {
-                 this.test_ids += "," + test.id;
-             }
-        }
+        bm_test.notify["execState"].connect (this.notify_test_exec_state_changed_cb);
 
         /* TODO: decide if test should really execute now */
 
         bm_test.execute.begin ((obj,res) => {
             try {
                 bm_test.execute.end (res);
-            } catch (BMTestError e) {
+            } catch (BasicManagementTestError e) {
                 /* already executing */
             }
             /* TODO Test is finished, now remove test from active test list */
@@ -115,42 +153,61 @@ public class Rygel.BasicManagement : Service {
         action.set ("TestID",
                         typeof (string),
                         bm_test.id);
+
         action.return ();
     }
 
+/*
+    /// TODO: NOT USED YET
+    private void remove_test (BasicManagementTest bm_test) {
+        if (this.tests_map.unset (bm_test.id) == true) {
+            this.notify ("TestIDs", typeof (string),
+                         create_test_ids_list (false));
+        }
+
+        if (this.active_tests_map.unset (bm_test.id) == true) {
+            this.notify ("ActiveTestIDs", typeof (string),
+                         create_test_ids_list (true));
+        }
+    }
+*/
+
     // Error out if 'TestID' is wrong
-    private bool check_test_id (ServiceAction action, out BMTest bm_test) {
+    private bool ensure_test_exists (ServiceAction action,
+                                     out BasicManagementTest bm_test) {
 
         string test_id;
 
         action.get ("TestID", typeof (string), out test_id);
 
-        bm_test = null;
-
-        foreach (BMTest test in this.tests_list) {
-             if (test.id == test_id) {
-                 bm_test = test;
-
-                 break;
-             }
-        }
+        bm_test = this.tests_map[test_id];
 
         if (bm_test == null) {
-            // No test with the specified TestID was found
+            /// No test with the specified TestID was found
             action.return_error (706, _("No Such Test"));
 
             return false;
-        } else if ((action.get_name() != "CancelTest") &&
-                   (action.get_name() != "GetTestInfo") &&
-                   (bm_test.results_type != action.get_name())) {
-            // TestID is valid but refers to the wrong test type
+        } else if ((bm_test.results_type != action.get_name()) &&
+                   ((action.get_name() == "GetPingResult") ||
+                    (action.get_name() == "GetNSLookupResult") ||
+                    (action.get_name() == "GetTracerouteResult"))) {
+            /// TestID is valid but refers to the wrong test type
             action.return_error (707, _("Wrong Test Type"));
 
             return false;
-        } else if ((action.get_name() != "GetTestInfo") &&
-                   (bm_test.execution_state != BMTest.ExecutionState.COMPLETED)) {
-            // TestID is valid but the test Results are not available
+        } else if ((bm_test.execState != BasicManagementTest.ExecutionState.COMPLETED) &&
+                   ((action.get_name() == "GetPingResult") ||
+                    (action.get_name() == "GetNSLookupResult") ||
+                    (action.get_name() == "GetTracerouteResult"))) {
+            /// TestID is valid but the test Results are not available
             action.return_error (708, _("Invalid Test State"));
+
+            return false;
+        } else if ((action.get_name() == "CancelTest") &&
+                   ((bm_test.execState == BasicManagementTest.ExecutionState.CANCELED) ||
+                    (bm_test.execState == BasicManagementTest.ExecutionState.COMPLETED))) {
+            /// TestID is valid but the test can't be canceled
+            action.return_error (709, _("State Precludes Cancel"));
 
             return false;
         }
@@ -169,14 +226,14 @@ public class Rygel.BasicManagement : Service {
                                     string    var,
                                     ref Value val) {
         val.init (typeof (string));
-        val.set_string (test_ids);
+        val.set_string (create_test_ids_list (false));
     }
 
     private void query_active_test_ids_cb (Service   cm,
                                            string    var,
                                            ref Value val) {
         val.init (typeof (string));
-        val.set_string (active_test_ids);
+        val.set_string (create_test_ids_list (true));
     }
 
     private void get_device_status_cb (Service             cm,
@@ -222,7 +279,7 @@ public class Rygel.BasicManagement : Service {
                         typeof (uint),
                         out dscp);
 
-        BMTestPing ping = new BMTestPing();
+        BasicManagementTestPing ping = new BasicManagementTestPing();
         if (!ping.init (host, repeat_count, interval_time_out,
                         data_block_size, dscp)) {
             action.return_error (402, _("Invalid argument"));
@@ -230,8 +287,7 @@ public class Rygel.BasicManagement : Service {
             return;
         }
 
-        // test_id to be added to TestIDs and ActiveTestID
-        this.add_test_and_return_action (ping as BMTest, action);
+        this.add_test_and_return_action (ping as BasicManagementTest, action);
     }
 
     private void ping_result_cb (Service             cm,
@@ -242,9 +298,9 @@ public class Rygel.BasicManagement : Service {
             return;
         }
 
-        BMTest bm_test;
+        BasicManagementTest bm_test;
 
-        if (!this.check_test_id (action, out bm_test)) {
+        if (!this.ensure_test_exists (action, out bm_test)) {
             return;
         }
 
@@ -252,7 +308,8 @@ public class Rygel.BasicManagement : Service {
         uint success_count, failure_count;
         uint32 average_response_time, min_response_time, max_response_time;
 
-        (bm_test as BMTestPing).get_results (out status, out additional_info,
+        (bm_test as BasicManagementTestPing).get_results (out status,
+                                             out additional_info,
                                              out success_count,
                                              out failure_count,
                                              out average_response_time,
@@ -310,13 +367,15 @@ public class Rygel.BasicManagement : Service {
                         typeof (uint32),
                         out interval_time_out);
 
-        BMTestNSLookup nslookup = new BMTestNSLookup();
+        BasicManagementTestNSLookup nslookup;
+        nslookup = new BasicManagementTestNSLookup();
         try {
             nslookup.init (hostname, dns_server,
                            repeat_count, interval_time_out);
 
-            this.add_test_and_return_action (nslookup as BMTest, action);
-        } catch (BMTestError e) {
+            this.add_test_and_return_action (nslookup as BasicManagementTest,
+                                             action);
+        } catch (BasicManagementTestError e) {
             action.return_error (402, _("Invalid argument"));
         }
     }
@@ -329,16 +388,16 @@ public class Rygel.BasicManagement : Service {
             return;
         }
 
-        BMTest bm_test;
+        BasicManagementTest bm_test;
 
-        if (!this.check_test_id (action, out bm_test)) {
+        if (!this.ensure_test_exists (action, out bm_test)) {
             return;
         }
 
         string status, additional_info, result;
         uint success_count;
 
-        (bm_test as BMTestNSLookup).get_results (out status,
+        (bm_test as BasicManagementTestNSLookup).get_results (out status,
                                                  out additional_info,
                                                  out success_count,
                                                  out result);
@@ -387,7 +446,8 @@ public class Rygel.BasicManagement : Service {
                         typeof (uint),
                         out dscp);
 
-        BMTestTraceroute traceroute = new BMTestTraceroute();
+        BasicManagementTestTraceroute traceroute;
+        traceroute = new BasicManagementTestTraceroute();
         if (!traceroute.init (host, wait_time_out, data_block_size,
                               max_hop_count, dscp)) {
             action.return_error (402, _("Invalid argument"));
@@ -395,7 +455,8 @@ public class Rygel.BasicManagement : Service {
             return;
         }
 
-        this.add_test_and_return_action (traceroute as BMTest, action);
+        this.add_test_and_return_action (traceroute as BasicManagementTest,
+                                         action);
     }
 
     private void traceroute_result_cb (Service             cm,
@@ -406,16 +467,16 @@ public class Rygel.BasicManagement : Service {
             return;
         }
 
-        BMTest bm_test;
+        BasicManagementTest bm_test;
 
-        if (!this.check_test_id (action, out bm_test)) {
+        if (!this.ensure_test_exists (action, out bm_test)) {
             return;
         }
 
         string status, additional_info, hop_hosts;
         uint32 response_time;
 
-        (bm_test as BMTestTraceroute).get_results (out status,
+        (bm_test as BasicManagementTestTraceroute).get_results (out status,
                                                    out additional_info,
                                                    out response_time,
                                                    out hop_hosts);
@@ -446,7 +507,7 @@ public class Rygel.BasicManagement : Service {
 
         action.set ("TestIDs",
                         typeof (string),
-                        this.test_ids);
+                        create_test_ids_list (false));
 
         action.return ();
     }
@@ -461,7 +522,7 @@ public class Rygel.BasicManagement : Service {
 
         action.set ("TestIDs",
                         typeof (string),
-                        this.active_test_ids);
+                        create_test_ids_list (true));
 
         action.return ();
     }
@@ -474,9 +535,9 @@ public class Rygel.BasicManagement : Service {
             return;
         }
 
-        BMTest bm_test;
+        BasicManagementTest bm_test;
 
-        if (!this.check_test_id (action, out bm_test)) {
+        if (!this.ensure_test_exists (action, out bm_test)) {
             return;
         }
 
@@ -485,7 +546,7 @@ public class Rygel.BasicManagement : Service {
                         bm_test.method_type,
                     "State",
                         typeof (string),
-                        bm_test.execution_state.to_string());
+                        bm_test.execState.to_string());
 
         action.return ();
     }
@@ -498,15 +559,15 @@ public class Rygel.BasicManagement : Service {
             return;
         }
 
-        BMTest bm_test;
+        BasicManagementTest bm_test;
 
-        if (!this.check_test_id (action, out bm_test)) {
+        if (!this.ensure_test_exists (action, out bm_test)) {
             return;
         }
 
         try {
             bm_test.cancel();
-        } catch (BMTestError e) {
+        } catch (BasicManagementTestError e) {
             warning ("Canceled test was not running\n");
         }
 
