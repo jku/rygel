@@ -124,17 +124,17 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
 
         private string get_addresses_csv () {
             var builder = new StringBuilder ("");
-            foreach (var address in addresses) {
+            foreach (var address in this.addresses) {
                 if (builder.len != 0)
                     builder.append (",");
                 builder.append (address);
             }
+
             return builder.str;
         }
 
         public string to_xml_fragment() {
             /* TODO limit the returned values */
-
             return ("<Result>\n" +
                     "<Status>%s</Status>\n" +
                     "<AnswerType>%s</AnswerType>\n" +
@@ -161,9 +161,9 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
 
     public void init(string host_name, string? name_server, uint repetitions,
                      uint32 interval_time_out) throws BasicManagementTestError {
-        command = { "nslookup" };
-        generic_status = GenericStatus.ERROR_INTERNAL;
-        results = {};
+        this.command = { "nslookup" };
+        this.generic_status = GenericStatus.ERROR_INTERNAL;
+        this.results = {};
 
         /* TODO should invalid values fail now instead of just limit ? */
         repetitions = uint.max (1, repetitions);
@@ -171,15 +171,15 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
 
         interval_time_out = uint.max (MIN_INTERVAL_TIMEOUT, interval_time_out);
         interval_time_out = uint.min (interval_time_out, MAX_INTERVAL_TIMEOUT);
-        command += ("-timeout=%u").printf (interval_time_out/1000);
+        this.command += ("-timeout=%u").printf (interval_time_out/1000);
 
         if (host_name == null || host_name.length < 1)
             throw new BasicManagementTestError.INIT_FAILED
                                                 ("Host name is required");
-        command += host_name;
+        this.command += host_name;
 
         if (name_server != null && name_server.length > 0)
-            command += name_server;
+            this.command += name_server;
 
     }
 
@@ -194,21 +194,25 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
             answer_type = AnswerType.NONE,
             execution_time = 0
         };
-        results += result;
+        this.results += result;
 
-        timer.start ();
+        this.timer.start ();
     }
 
     protected override void finish_iteration () {
         switch (this.execution_state) {
             case ExecutionState.SPAWN_FAILED:
-                generic_status = GenericStatus.ERROR_INTERNAL;
-                additional_info = "Failed spawn nslookup";
-                results[results.length - 1].status = ResultStatus.ERROR_OTHER;
+                this.generic_status = GenericStatus.ERROR_INTERNAL;
+                this.additional_info = "Failed spawn nslookup";
+                this.results[results.length - 1].status = 
+                                        ResultStatus.ERROR_OTHER;
+
                 break;
             default:
-                var execution_time = (uint)Math.round(timer.elapsed (null) * 1000);
-                results[results.length - 1].execution_time = execution_time;
+                var elapsed_msec = this.timer.elapsed (null) * 1000;
+                var execution_time = (uint)Math.round(elapsed_msec);
+                this.results[results.length - 1].execution_time = execution_time;
+
                 break;
         }
 
@@ -216,21 +220,21 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
     }
 
     protected override void handle_error (string line) {
-        var result = results[results.length - 1];
+        var result = this.results[results.length - 1];
 
         if (line.contains ("couldn't get address for")) {
-            generic_status = GenericStatus.ERROR_DNS_SERVER_NOT_RESOLVED;
-            result.status = ResultStatus.ERROR_DNS_SERVER_NOT_AVAILABLE;
+            this.generic_status = GenericStatus.ERROR_DNS_SERVER_NOT_RESOLVED;
             this.execution_state = ExecutionState.COMPLETED;
+            result.status = ResultStatus.ERROR_DNS_SERVER_NOT_AVAILABLE;
         }
 
         /* there has to be a nicer way to do this... */
-        results[results.length - 1] = result;
+        this.results[results.length - 1] = result;
     }
 
     protected override void handle_output (string line) {
-        var result = results[results.length - 1];
-        line.strip();
+        var result = this.results[results.length - 1];
+        line.strip ();
         if (line.has_prefix ("Server:")) {
             if (result.state != ProcessState.INIT)
                 warning ("nslookup parser: Unexpected 'Server:' line.\n");
@@ -239,15 +243,16 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
             if (result.state == ProcessState.INIT)
                 warning ("nslookup parser: Unexpected 'Name:' line");
             else if (result.state == ProcessState.SERVER)
-                result.returned_host_name = line.substring ("Name:".length).strip(); 
+                result.returned_host_name =
+                                        line.substring ("Name:".length).strip ();
             result.state = ProcessState.NAME;
         } else if (line.has_prefix ("Address:")) {
             if (result.state == ProcessState.SERVER) {
-                var address = line.substring ("Address:".length).strip();
+                var address = line.substring ("Address:".length).strip ();
                 result.name_server_address = address.split ("#", 2)[0];
-                generic_status = GenericStatus.SUCCESS;
+                this.generic_status = GenericStatus.SUCCESS;
             } else if (result.state == ProcessState.NAME) {
-                result.addresses += line.substring ("Address:".length).strip();
+                result.addresses += line.substring ("Address:".length).strip ();
                 result.status = ResultStatus.SUCCESS;
                 if (result.answer_type == AnswerType.NONE)
                     result.answer_type = AnswerType.AUTHORITATIVE;
@@ -258,7 +263,7 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
         } else if (line.contains ("server can't find")) {
             result.status = ResultStatus.ERROR_HOSTNAME_NOT_RESOLVED;
         } else if (line.contains ("couldn't get address for")) {
-            generic_status = GenericStatus.ERROR_DNS_SERVER_NOT_RESOLVED;
+            this.generic_status = GenericStatus.ERROR_DNS_SERVER_NOT_RESOLVED;
             result.status = ResultStatus.ERROR_DNS_SERVER_NOT_AVAILABLE;
             this.execution_state = ExecutionState.COMPLETED;
         } else if (line.contains ("no servers could be reached")) {
@@ -266,7 +271,7 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
         }
 
         /* there has to be a nicer way to do this... */
-        results[results.length - 1] = result;
+        this.results[results.length - 1] = result;
     }
 
 
@@ -275,7 +280,7 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
         success_count = 0;
         StringBuilder builder = new StringBuilder (HEADER);
 
-        foreach (var result in results) {
+        foreach (var result in this.results) {
             builder.append (result.to_xml_fragment ());
             if (result.status == ResultStatus.SUCCESS)
                 success_count++;
@@ -283,7 +288,7 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
         builder.append (FOOTER);
         result_string = builder.str;
 
-        status = generic_status.to_string();
+        status = this.generic_status.to_string();
         additional_info = "";
     }
 /*
