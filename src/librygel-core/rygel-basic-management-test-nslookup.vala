@@ -104,14 +104,9 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
         }
     }
 
-    /* TODO make sure all these are respected */
     private static const uint MAX_REPEAT_COUNT = 100;
     private static const uint MIN_INTERVAL_TIMEOUT = 1000;
     private static const uint MAX_INTERVAL_TIMEOUT = 30000;
-    private static const uint MAX_RESULT_ANSWER_STR_SIZE = 32; // ?
-    private static const uint MAX_RESULT_NAME_STR_SIZE = 256; // ?
-    private static const uint MAX_RESULT_IPS_STR_SIZE = 1024; // length of addresses csv ?
-    private static const uint MAX_RESULT_ARRAY_SIZE = 7; // ?
 
     private struct Result {
         private ProcessState state;
