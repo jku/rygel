@@ -158,6 +158,7 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
                      uint32 interval_time_out) throws BasicManagementTestError {
         this.command = { "nslookup" };
         this.generic_status = GenericStatus.ERROR_INTERNAL;
+        this.additional_info = "";
         this.results = {};
 
         /* TODO should invalid values fail now instead of just limit ? */
@@ -284,8 +285,9 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
         result_string = builder.str;
 
         status = this.generic_status.to_string();
-        additional_info = "";
+        additional_info = this.additional_info;
     }
+
 /*
     //valac --pkg gio-2.0 --pkg posix -X -lm  rygel-bm-test-nslookup.vala rygel-bm-test.vala
 
