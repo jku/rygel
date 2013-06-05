@@ -44,7 +44,8 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
     private enum GenericStatus {
         SUCCESS,
         ERROR_DNS_SERVER_NOT_RESOLVED,
-        ERROR_INTERNAL;
+        ERROR_INTERNAL,
+        ERROR_OTHER;
         
         public string to_string() {
             switch (this) {
@@ -54,6 +55,8 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
                     return "Error_DNSServerNotResolved";
                 case ERROR_INTERNAL:
                     return "Error_Internal";
+                case ERROR_OTHER:
+                    return "Error_Other";
                 default:
                     assert_not_reached();
             }
@@ -146,6 +149,10 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
         }
     }
 
+    public string host_name { construct; private get; default = ""; }
+    public string? name_server { construct; private get; default = null; }
+    public uint interval_time_out { construct; private get; default = MIN_INTERVAL_TIMEOUT; }
+
     private Result[] results;
     private GenericStatus generic_status;
     private string additional_info;
@@ -154,29 +161,43 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
     public override string method_type { get { return "NSLookup"; } }
     public override string results_type { get { return "GetNSLookupResult"; } }
 
-    public void init(string host_name, string? name_server, uint repetitions,
-                     uint32 interval_time_out) throws BasicManagementTestError {
-        this.command = { "nslookup" };
+    public BasicManagementTestNSLookup(string host_name,
+                                       string? name_server,
+                                       uint repetitions,
+                                       uint32 interval_time_out) {
+        Object (host_name: host_name,
+                name_server: name_server,
+                repetitions: repetitions,
+                interval_time_out: interval_time_out);
+    }
+
+    public override void constructed () {
+        base.constructed ();
+
         this.generic_status = GenericStatus.ERROR_INTERNAL;
         this.additional_info = "";
         this.results = {};
 
-        /* TODO should invalid values fail now instead of just limit ? */
-        repetitions = uint.max (1, repetitions);
-        this.repetitions = uint.min (repetitions, MAX_REPEAT_COUNT);
-
-        interval_time_out = uint.max (MIN_INTERVAL_TIMEOUT, interval_time_out);
-        interval_time_out = uint.min (interval_time_out, MAX_INTERVAL_TIMEOUT);
-        this.command += ("-timeout=%u").printf (interval_time_out/1000);
-
-        if (host_name == null || host_name.length < 1)
-            throw new BasicManagementTestError.INIT_FAILED
-                                                ("Host name is required");
+        this.command = { "nslookup" };
+        this.command += ("-timeout=%u").printf (this.interval_time_out/1000);
         this.command += host_name;
-
         if (name_server != null && name_server.length > 0)
             this.command += name_server;
 
+        /* Fail early if internal parameter limits are violated */
+        if (this.repetitions > MAX_REPEAT_COUNT) {
+            init_state = InitState.INVALID_PARAMETER;
+            var msg = "NumberOfRepetitions %u is not in allowed range [0, %u]";
+            this.additional_info = msg.printf (this.repetitions,
+                                               MAX_REPEAT_COUNT);
+        } else if (this.interval_time_out < MIN_INTERVAL_TIMEOUT ||
+                   this.interval_time_out > MAX_INTERVAL_TIMEOUT) {
+            init_state = InitState.INVALID_PARAMETER;
+            var msg = "Timeout %u is not in allowed range [%u, %u]";
+            this.additional_info = msg.printf (this.interval_time_out,
+                                               MIN_INTERVAL_TIMEOUT,
+                                               MAX_INTERVAL_TIMEOUT);
+        }
     }
 
     protected override void init_iteration () {
@@ -196,19 +217,25 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
     }
 
     protected override void finish_iteration () {
-        switch (this.execution_state) {
-            case ExecutionState.SPAWN_FAILED:
+        switch (this.init_state) {
+            case InitState.SPAWN_FAILED:
+                /* quitting early */
                 this.generic_status = GenericStatus.ERROR_INTERNAL;
-                this.additional_info = "Failed spawn nslookup";
+                this.additional_info = "Failed to spawn nslookup";
                 this.results[results.length - 1].status = 
                                         ResultStatus.ERROR_OTHER;
-
+                break;
+            case InitState.INVALID_PARAMETER:
+                /* quitting early */
+                /* constructed() has set info already */
+                this.generic_status = GenericStatus.ERROR_OTHER;
+                this.results[results.length - 1].status = 
+                                        ResultStatus.ERROR_OTHER;
                 break;
             default:
                 var elapsed_msec = this.timer.elapsed (null) * 1000;
                 var execution_time = (uint)Math.round(elapsed_msec);
                 this.results[results.length - 1].execution_time = execution_time;
-
                 break;
         }
 

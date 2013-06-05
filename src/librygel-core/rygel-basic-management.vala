@@ -118,8 +118,7 @@ public class Rygel.BasicManagement : Service {
             this.notify ("ActiveTestIDs", typeof (string),
                          create_test_ids_list (true));
         } else if ((execution_state == BasicManagementTest.ExecutionState.CANCELED) ||
-                   (execution_state == BasicManagementTest.ExecutionState.COMPLETED) ||
-                   (execution_state == BasicManagementTest.ExecutionState.SPAWN_FAILED)) {
+                   (execution_state == BasicManagementTest.ExecutionState.COMPLETED)) {
             this.active_tests_map.unset (bm_test.id);
             this.notify ("ActiveTestIDs", typeof (string),
                          create_test_ids_list (true));
@@ -277,16 +276,10 @@ public class Rygel.BasicManagement : Service {
                         typeof (uint),
                         out dscp);
 
-        var ping = new BasicManagementTestPing();
-        try {
-            ping.init (host, repeat_count, interval_time_out, data_block_size,
-                       dscp);
-
-            this.add_test_and_return_action (ping as BasicManagementTest,
-                                             action);
-        } catch (BasicManagementTestError e) {
-            action.return_error (402, _("Invalid argument"));
-        }
+        var ping = new BasicManagementTestPing(host, repeat_count,
+                                               interval_time_out,
+                                               data_block_size, dscp);
+        this.add_test_and_return_action (ping as BasicManagementTest, action);
     }
 
     private void ping_result_cb (Service             cm,
@@ -366,16 +359,12 @@ public class Rygel.BasicManagement : Service {
                         typeof (uint32),
                         out interval_time_out);
 
-        var nslookup = new BasicManagementTestNSLookup();
-        try {
-            nslookup.init (hostname, dns_server, repeat_count,
-                           interval_time_out);
-
-            this.add_test_and_return_action (nslookup as BasicManagementTest,
-                                             action);
-        } catch (BasicManagementTestError e) {
-            action.return_error (402, _("Invalid argument"));
-        }
+        var nslookup = new BasicManagementTestNSLookup(hostname,
+                                                       dns_server,
+                                                       repeat_count,
+                                                       interval_time_out);
+        this.add_test_and_return_action (nslookup as BasicManagementTest,
+                                         action);
     }
 
     private void nslookup_result_cb (Service             cm,
@@ -444,14 +433,9 @@ public class Rygel.BasicManagement : Service {
                         typeof (uint),
                         out dscp);
 
-        var traceroute = new BasicManagementTestTraceroute();
-        if (!traceroute.init (host, wait_time_out, data_block_size,
-                              max_hop_count, dscp)) {
-            action.return_error (402, _("Invalid argument"));
-
-            return;
-        }
-
+        var traceroute = new BasicManagementTestTraceroute(host, wait_time_out,
+                                                           data_block_size,
+                                                           max_hop_count, dscp);
         this.add_test_and_return_action (traceroute as BasicManagementTest,
                                          action);
     }
