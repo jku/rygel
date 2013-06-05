@@ -25,16 +25,21 @@ using GLib;
 
 
 internal errordomain Rygel.BasicManagementTestError {
-    NOT_POSSIBLE,
-    INIT_FAILED,
+    NOT_POSSIBLE
 }
 
 internal abstract class Rygel.BasicManagementTest : Object {
+    protected enum InitState {
+        OK,
+        SPAWN_FAILED,
+        INVALID_PARAMETER,
+    }
+    protected InitState init_state;
+
     public enum ExecutionState {
         REQUESTED,
         IN_PROGRESS,
         COMPLETED,
-        SPAWN_FAILED,
         CANCELED;
 
         /* Return values fit for A_ARG_TYPE_TestState */
@@ -46,8 +51,6 @@ internal abstract class Rygel.BasicManagementTest : Object {
                     return "InProgress";
                 case COMPLETED:
                     return "Completed";
-                case SPAWN_FAILED:
-                    return "Completed";
                 case CANCELED:
                     return "Canceled";
                 default:
@@ -56,8 +59,11 @@ internal abstract class Rygel.BasicManagementTest : Object {
         }
     }
 
-    public ExecutionState execution_state;
-    
+    public ExecutionState execution_state {
+        get;
+        protected set; 
+        default = ExecutionState.REQUESTED;
+    }
     public string id;
 
     /* properties implementations need to provide */
@@ -65,10 +71,10 @@ internal abstract class Rygel.BasicManagementTest : Object {
     public abstract string results_type { get; }
 
     /* properties for implementations to access */
+    public uint repetitions { construct; protected get; default = 1; }
     protected SpawnFlags flags = SpawnFlags.SEARCH_PATH |
                                  SpawnFlags.LEAVE_DESCRIPTORS_OPEN;
     protected string[] command;
-    protected uint repetitions;
 
     private uint eof_count;
     private int std_out;
@@ -90,9 +96,15 @@ internal abstract class Rygel.BasicManagementTest : Object {
     }
     protected virtual void finish_iteration () {
         this.iteration++;
-        if (this.execution_state != ExecutionState.IN_PROGRESS) {
-            this.async_callback ();
-        } else if (this.iteration >= this.repetitions) {
+
+        if (this.init_state != InitState.OK ||
+            this.execution_state == ExecutionState.COMPLETED ||
+            this.iteration >= this.repetitions) {
+            /* No more iterations if 
+             *  - init failed, recovery is impossible or
+             *  - execution has ended (remaining iterations should be skipped)
+             *  - the specified nr of iterations have been executed already
+             */
             this.execution_state = ExecutionState.COMPLETED;
             this.async_callback ();
         } else {
@@ -111,8 +123,16 @@ internal abstract class Rygel.BasicManagementTest : Object {
     }
 
     private void run_iteration () {
+        this.init_iteration ();
+
+        /*if we failed to initialize, skip spawning */
+        if (this.init_state != InitState.OK) {
+            Idle.add ((SourceFunc)this.finish_iteration);
+            return;
+        }
+
         try {
-            this.init_iteration ();
+
             this.eof_count = 0;
             Process.spawn_async_with_pipes (null,
                                             this.command,
@@ -132,8 +152,9 @@ internal abstract class Rygel.BasicManagementTest : Object {
             err_channel.add_watch (IOCondition.OUT | IOCondition.HUP,
                                    this.err_watch);
         } catch (SpawnError e) {
-            /* Let the async function yeild, then error out */
-            this.execution_state = ExecutionState.SPAWN_FAILED;
+            /* Let the async function yeild, then let the Test 
+             * implementation handle this in finish_iteration */
+            this.init_state = InitState.SPAWN_FAILED;
             Idle.add ((SourceFunc)this.finish_iteration);
         }
     }
@@ -186,12 +207,6 @@ internal abstract class Rygel.BasicManagementTest : Object {
         }
 
         return true;
-    }
-
-
-    public BasicManagementTest() {
-        this.execution_state = ExecutionState.REQUESTED;
-        this.id = null;
     }
 
     public async virtual void execute () throws BasicManagementTestError {
