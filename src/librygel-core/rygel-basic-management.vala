@@ -108,7 +108,8 @@ public class Rygel.BasicManagement : Service {
         BasicManagementTest.ExecutionState execution_state = bm_test.execution_state;
 
         if ((execution_state == BasicManagementTest.ExecutionState.REQUESTED) ||
-            (execution_state == BasicManagementTest.ExecutionState.REQUESTED)) {
+            (execution_state == BasicManagementTest.ExecutionState.IN_PROGRESS)) {
+
             this.tests_map.set (bm_test.id, bm_test);
             this.notify ("TestIDs", typeof (string),
                          create_test_ids_list (false));
@@ -134,7 +135,6 @@ public class Rygel.BasicManagement : Service {
         update_test_ids_lists (bm_test);
 
         /* TODO: decide if test should really execute now */
-
         bm_test.execute.begin ((obj,res) => {
             try {
                 bm_test.execute.end (res);
@@ -278,14 +278,15 @@ public class Rygel.BasicManagement : Service {
                         out dscp);
 
         var ping = new BasicManagementTestPing();
-        if (!ping.init (host, repeat_count, interval_time_out,
-                        data_block_size, dscp)) {
+        try {
+            ping.init (host, repeat_count, interval_time_out, data_block_size,
+                       dscp);
+
+            this.add_test_and_return_action (ping as BasicManagementTest,
+                                             action);
+        } catch (BasicManagementTestError e) {
             action.return_error (402, _("Invalid argument"));
-
-            return;
         }
-
-        this.add_test_and_return_action (ping as BasicManagementTest, action);
     }
 
     private void ping_result_cb (Service             cm,
@@ -304,13 +305,13 @@ public class Rygel.BasicManagement : Service {
 
         string status, additional_info;
         uint success_count, failure_count;
-        uint32 average_response_time, min_response_time, max_response_time;
+        uint32 avg_response_time, min_response_time, max_response_time;
 
         (bm_test as BasicManagementTestPing).get_results (out status,
                                              out additional_info,
                                              out success_count,
                                              out failure_count,
-                                             out average_response_time,
+                                             out avg_response_time,
                                              out min_response_time,
                                              out max_response_time);
 
@@ -328,7 +329,7 @@ public class Rygel.BasicManagement : Service {
                         failure_count,
                     "AverageResponseTime",
                         typeof (uint32),
-                        average_response_time,
+                        avg_response_time,
                     "MinimumResponseTime",
                         typeof (uint32),
                         min_response_time,
@@ -367,8 +368,8 @@ public class Rygel.BasicManagement : Service {
 
         var nslookup = new BasicManagementTestNSLookup();
         try {
-            nslookup.init (hostname, dns_server,
-                           repeat_count, interval_time_out);
+            nslookup.init (hostname, dns_server, repeat_count,
+                           interval_time_out);
 
             this.add_test_and_return_action (nslookup as BasicManagementTest,
                                              action);
