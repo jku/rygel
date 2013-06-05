@@ -25,6 +25,18 @@ using GLib;
 
 // Helper class for BasicManagementTestPing.
 internal class Rygel.BasicManagementTestPing : BasicManagementTest {
+    private static const uint MAX_REPEAT_COUNT = 100;
+    private static const uint DEFAULT_REPEAT_COUNT = 1;
+    private static const uint DEFAULT_REPLY_TIMEOUT = 10000;
+    private static const uint MIN_REQUEST_INTERVAL_TIMEOUT = 1000;
+    private static const uint MAX_REQUEST_INTERVAL_TIMEOUT = 30000;
+    private static const uint DEFAULT_REQUEST_INTERVAL_TIMEOUT = 10000;
+    private static const uint MIN_DATA_BLOCK_SIZE = 20;
+    private static const uint MAX_DATA_BLOCK_SIZE = 2048;
+    private static const uint DEFAULT_DATA_BLOCK_SIZE = 32;
+    private static const uint MAX_DSCP = 64;
+    private static const uint DEFAULT_DSCP = 30;
+
     private enum ProcessState {
         INIT,
         STATISTICS,
@@ -53,6 +65,53 @@ internal class Rygel.BasicManagementTestPing : BasicManagementTest {
         }
     }
 
+    public string host { construct; get; default = ""; }
+
+    private uint _repeat_count;
+    public uint repeat_count {
+        construct {
+            this._repeat_count = value;
+            if (this._repeat_count == 0)
+                this._repeat_count = DEFAULT_REPEAT_COUNT;
+        }
+        get { return this._repeat_count; }
+        default = DEFAULT_REPEAT_COUNT;
+    }
+
+    private uint _data_block_size;
+    public uint data_block_size {
+        construct {
+            this._data_block_size = value;
+            if (this._data_block_size == 0)
+                this._data_block_size = DEFAULT_DATA_BLOCK_SIZE;
+        }
+        get { return this._data_block_size; }
+        default = DEFAULT_DATA_BLOCK_SIZE;
+    }
+
+    private uint _dscp;
+    public uint dscp {
+        construct {
+            this._dscp = value;
+            if (this._dscp == 0)
+                this._dscp = DEFAULT_DSCP;
+        }
+        get { return this._dscp; }
+        default = DEFAULT_DSCP;
+    }
+
+    private uint32 _interval_time_out;
+    public uint32 interval_time_out {
+        construct {
+            this._interval_time_out = value;
+            if (this._interval_time_out == 0)
+                this._interval_time_out = DEFAULT_REQUEST_INTERVAL_TIMEOUT;
+        }
+        get { return _interval_time_out; }
+        default = DEFAULT_REQUEST_INTERVAL_TIMEOUT;
+    }
+
+
     private ProcessState state;
     private Status status;
     private string additional_info;
@@ -62,28 +121,26 @@ internal class Rygel.BasicManagementTestPing : BasicManagementTest {
     private uint32 min_response_time;
     private uint32 max_response_time;
 
-    private static const uint MIN_REPEAT_COUNT = 1;
-    private static const uint MAX_REPEAT_COUNT = 100;
-    private static const uint DEFAULT_REPEAT_COUNT = 1;
-    private static const uint DEFAULT_REPLY_TIMEOUT = 10000;
-    private static const uint MIN_REQUEST_INTERVAL_TIMEOUT = 1000;
-    private static const uint MAX_REQUEST_INTERVAL_TIMEOUT = 30000;
-    private static const uint DEFAULT_REQUEST_INTERVAL_TIMEOUT = 10000;
-    private static const uint MIN_DATA_BLOCK_SIZE = 20;
-    private static const uint MAX_DATA_BLOCK_SIZE = 2048;
-    private static const uint DEFAULT_DATA_BLOCK_SIZE = 32;
-    private static const uint MIN_DSCP = 1;
-    private static const uint MAX_DSCP = 64;
-    private static const uint DEFAULT_DSCP = 30;
-
     public override string method_type { get { return "Ping"; } }
     public override string results_type { get { return "GetPingResult"; } }
 
-    public void init(string host, uint repeat_count, uint data_block_size,
-                     uint dscp, uint32 interval_time_out)
-                     throws BasicManagementTestError {
-        this.command = { "ping" };
+    public BasicManagementTestPing (string host,
+                                    uint repeat_count,
+                                    uint data_block_size,
+                                    uint dscp,
+                                    uint32 interval_time_out) {
+        Object (host: host,
+                repeat_count: repeat_count,
+                data_block_size: data_block_size,
+                dscp: dscp,
+                interval_time_out: interval_time_out);
+    }
+
+    public override void constructed () {
+        base.constructed ();
+
         this.status = Status.ERROR_INTERNAL;
+        this.state = ProcessState.INIT;
         this.additional_info = "";
         this.success_count = 0;
         this.failure_count = 0;
@@ -91,62 +148,51 @@ internal class Rygel.BasicManagementTestPing : BasicManagementTest {
         this.min_response_time = 0;
         this.max_response_time = 0;
 
-        if (repeat_count == 0) {
-            repeat_count = DEFAULT_REPEAT_COUNT;
-        } else if (repeat_count < MIN_REPEAT_COUNT &&
-                   repeat_count > MAX_REPEAT_COUNT) {
-            throw new BasicManagementTestError.INIT_FAILED
-                                                ("Invalid repeat count");
-        }
+        this.command = { "ping" };
         this.command += ("-c %u").printf (repeat_count);
-
         this.command += ("-W %u").printf (DEFAULT_REPLY_TIMEOUT/1000);
-
-        if (interval_time_out == 0) {
-            interval_time_out = DEFAULT_REQUEST_INTERVAL_TIMEOUT;
-        } else if (interval_time_out < MIN_REQUEST_INTERVAL_TIMEOUT &&
-                   interval_time_out > MAX_REQUEST_INTERVAL_TIMEOUT) {
-            throw new BasicManagementTestError.INIT_FAILED
-                                                ("Invalid interval timeout");
-        }
         this.command += ("-i %u").printf (interval_time_out/1000);
-
-        if (data_block_size == 0) {
-            data_block_size = DEFAULT_DATA_BLOCK_SIZE;
-        } else if (data_block_size < MIN_DATA_BLOCK_SIZE &&
-                   data_block_size > MAX_DATA_BLOCK_SIZE) {
-            throw new BasicManagementTestError.INIT_FAILED
-                                                ("Invalid data block size");
-        }
         this.command += ("-s %u").printf (data_block_size);
-
-        if (dscp == 0) {
-            dscp = DEFAULT_DSCP;
-        } else if (dscp < MIN_DSCP && dscp > MAX_DSCP) {
-            throw new BasicManagementTestError.INIT_FAILED
-                                                ("Invalid DSCP");
-        }
         this.command += ("-Q %u").printf (dscp >> 2);
-
-        if (host == null || host.length < 1) {
-            throw new BasicManagementTestError.INIT_FAILED
-                                                ("Host name is required");
-        }
-
         this.command += host;
-    }
 
-    protected override void init_iteration () {
-        base.init_iteration ();
+        if (this.repeat_count > MAX_REPEAT_COUNT) {
+            this.init_state = InitState.INVALID_PARAMETER;
+            this.status = Status.ERROR_OTHER;
+            var msg = "NumberOfRepetitions %u is not in allowed range [0, %u]";
+            this.additional_info = msg.printf (this.repeat_count,
+                                               MAX_REPEAT_COUNT);
 
-        this.state = ProcessState.INIT;
+        } else if (this.interval_time_out < MIN_REQUEST_INTERVAL_TIMEOUT ||
+                   this.interval_time_out > MAX_REQUEST_INTERVAL_TIMEOUT) {
+            this.init_state = InitState.INVALID_PARAMETER;
+            this.status = Status.ERROR_OTHER;
+            var msg = "Timeout %u is not in allowed range [%u, %u]";
+            this.additional_info = msg.printf (this.interval_time_out,
+                                               MIN_REQUEST_INTERVAL_TIMEOUT,
+                                               MAX_REQUEST_INTERVAL_TIMEOUT);
+
+        } else if (this.data_block_size < MIN_DATA_BLOCK_SIZE ||
+                   this.data_block_size > MAX_DATA_BLOCK_SIZE) {
+            this.init_state = InitState.INVALID_PARAMETER;
+            this.status = Status.ERROR_OTHER;
+            var msg = "DataBlockSize %u is not in allowed range [%u, %u]";
+            this.additional_info = msg.printf (this.data_block_size,
+                                               MIN_DATA_BLOCK_SIZE,
+                                               MAX_DATA_BLOCK_SIZE);
+        } else if (this.dscp > MAX_DSCP) {
+            this.init_state = InitState.INVALID_PARAMETER;
+            this.status = Status.ERROR_OTHER;
+            var msg = "DSCP %u is not in allowed range [0, %u]";
+            this.additional_info = msg.printf (this.dscp, MAX_DSCP);
+        }
     }
 
     protected override void finish_iteration () {
-        switch (this.execution_state) {
-            case ExecutionState.SPAWN_FAILED:
+        switch (this.init_state) {
+            case InitState.SPAWN_FAILED:
                 this.status = Status.ERROR_INTERNAL;
-                this.additional_info = "Failed spawn ping";
+                this.additional_info = "Failed to spawn ping";
                 break;
             default:
                 break;
