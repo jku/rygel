@@ -71,7 +71,7 @@ internal abstract class Rygel.BasicManagementTest : Object {
     public abstract string results_type { get; }
 
     /* properties for implementations to access */
-    public uint repetitions { construct; protected get; default = 1; }
+    protected uint iterations;
     protected SpawnFlags flags = SpawnFlags.SEARCH_PATH |
                                  SpawnFlags.LEAVE_DESCRIPTORS_OPEN;
     protected string[] command;
@@ -81,7 +81,7 @@ internal abstract class Rygel.BasicManagementTest : Object {
     private int std_err;
     private Pid child_pid;
     private SourceFunc async_callback;
-    private uint iteration;
+    private uint current_iteration;
 
     /* These virtual/abstract functions will be called from execute():
      * - For every iteration:
@@ -95,11 +95,11 @@ internal abstract class Rygel.BasicManagementTest : Object {
         warning ("%s stderr: %s", command[0], line);
     }
     protected virtual void finish_iteration () {
-        this.iteration++;
+        this.current_iteration++;
 
         if (this.init_state != InitState.OK ||
             this.execution_state == ExecutionState.COMPLETED ||
-            this.iteration >= this.repetitions) {
+            this.current_iteration >= this.iterations) {
             /* No more iterations if 
              *  - init failed, recovery is impossible or
              *  - execution has ended (remaining iterations should be skipped)
@@ -215,7 +215,7 @@ internal abstract class Rygel.BasicManagementTest : Object {
                                                 ("Already executing or executed");
 
         this.execution_state = ExecutionState.IN_PROGRESS;
-        this.iteration = 0;
+        this.current_iteration = 0;
         this.async_callback = execute.callback;
 
         this.run_iteration ();
