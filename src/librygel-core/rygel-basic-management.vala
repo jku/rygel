@@ -37,6 +37,12 @@ public class Rygel.BasicManagement : Service {
     private HashMap<string, BasicManagementTest> tests_map;
     private HashMap<string, BasicManagementTest> active_tests_map;
 
+    private LinkedList<string> ping_ids;
+    private LinkedList<string> traceroute_ids;
+    private LinkedList<string> nslookup_ids;
+
+    private static const uint8 MAX_TESTS_COUNT = 10;
+
     private static uint current_id = 0;
 
     protected string device_status;
@@ -46,6 +52,10 @@ public class Rygel.BasicManagement : Service {
 
         this.tests_map = new HashMap<string, BasicManagementTest> ();
         this.active_tests_map = new HashMap<string, BasicManagementTest> ();
+
+        ping_ids = new LinkedList<string> ();
+        traceroute_ids = new LinkedList<string> ();
+        nslookup_ids = new LinkedList<string> ();
 
         var now = TimeVal ();
         now.tv_usec = 0;
@@ -106,15 +116,47 @@ public class Rygel.BasicManagement : Service {
 
     private void update_test_ids_lists (BasicManagementTest bm_test) {
         BasicManagementTest.ExecutionState execution_state = bm_test.execution_state;
+        LinkedList<string> test_keys = null;
+        string head_key_id = null;
 
         if ((execution_state == BasicManagementTest.ExecutionState.REQUESTED) ||
             (execution_state == BasicManagementTest.ExecutionState.IN_PROGRESS)) {
 
             this.tests_map.set (bm_test.id, bm_test);
+
+            if (bm_test.method_type == "NSLookup") {
+                test_keys = this.nslookup_ids;
+            } else if (bm_test.method_type == "Ping") {
+                test_keys = this.ping_ids;
+            } else if (bm_test.method_type == "Traceroute") {
+                test_keys = this.traceroute_ids;
+            }
+
+            if (test_keys != null) {
+                test_keys.add (bm_test.id);
+
+                if (test_keys.size > MAX_TESTS_COUNT) {
+                    head_key_id = test_keys.poll_head ();
+                    this.tests_map.unset (head_key_id);
+                }
+            }
+
             this.notify ("TestIDs", typeof (string),
                          create_test_ids_list (false));
 
             this.active_tests_map.set (bm_test.id, bm_test);
+
+            if (head_key_id != null) {
+                if (this.active_tests_map.has_key (head_key_id)) {
+                    try {
+                        this.active_tests_map.get (head_key_id).cancel ();
+                    } catch (BasicManagementTestError e) {
+                        warning ("Canceled test was not running\n");
+                    }
+                    this.active_tests_map.unset (head_key_id);
+                }
+            }
+
             this.notify ("ActiveTestIDs", typeof (string),
                          create_test_ids_list (true));
         } else if ((execution_state == BasicManagementTest.ExecutionState.CANCELED) ||
@@ -151,25 +193,6 @@ public class Rygel.BasicManagement : Service {
         action.return ();
     }
 
-/*
-    /// TODO: NOT USED YET
-    private void remove_test (BasicManagementTest bm_test) {
-        bm_test
-        if (this.tests_map.unset (bm_test.id) == true) {
-            this.notify ("TestIDs", typeof (string),
-                         create_test_ids_list (false));
-        }
-
-        if (this.active_tests_map.unset (bm_test.id) == true) {
-            this.cancel();
-
-            this.notify ("ActiveTestIDs", typeof (string),
-                         create_test_ids_list (true));
-        }
-    }
-*/
-
-    // Error out if 'TestID' is wrong
     private bool ensure_test_exists (ServiceAction action,
                                      out BasicManagementTest bm_test) {
 
