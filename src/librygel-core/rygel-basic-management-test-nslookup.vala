@@ -107,9 +107,11 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
         }
     }
 
-    private static const uint MAX_REPEAT_COUNT = 100;
+    private static const uint MAX_REPETITIONS = 100;
+    private static const uint DEFAULT_REPETITIONS = 1;
     private static const uint MIN_INTERVAL_TIMEOUT = 1000;
     private static const uint MAX_INTERVAL_TIMEOUT = 30000;
+    private static const uint DEFAULT_INTERVAL_TIMEOUT = 1000;
 
     private struct Result {
         private ProcessState state;
@@ -151,7 +153,31 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
 
     public string host_name { construct; private get; default = ""; }
     public string? name_server { construct; private get; default = null; }
-    public uint interval_time_out { construct; private get; default = MIN_INTERVAL_TIMEOUT; }
+
+    private uint _interval_time_out;
+    public uint interval_time_out {
+        construct {
+            this._interval_time_out = value;
+            if (this._interval_time_out == 0)
+                this._interval_time_out = DEFAULT_INTERVAL_TIMEOUT;
+        }
+        private get {
+            return this._interval_time_out;
+        }
+        default = DEFAULT_INTERVAL_TIMEOUT;
+    }
+
+    public uint repetitions {
+        construct {
+            this.iterations = value;
+            if (this.iterations == 0)
+                this.iterations = DEFAULT_REPETITIONS;
+        }
+        private get {
+            return this.iterations;
+        }
+        default = DEFAULT_REPETITIONS;
+    }
 
     private Result[] results;
     private GenericStatus generic_status;
@@ -185,11 +211,11 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
             this.command += name_server;
 
         /* Fail early if internal parameter limits are violated */
-        if (this.repetitions > MAX_REPEAT_COUNT) {
+        if (this.repetitions > MAX_REPETITIONS) {
             init_state = InitState.INVALID_PARAMETER;
             var msg = "NumberOfRepetitions %u is not in allowed range [0, %u]";
             this.additional_info = msg.printf (this.repetitions,
-                                               MAX_REPEAT_COUNT);
+                                               MAX_REPETITIONS);
         } else if (this.interval_time_out < MIN_INTERVAL_TIMEOUT ||
                    this.interval_time_out > MAX_INTERVAL_TIMEOUT) {
             init_state = InitState.INVALID_PARAMETER;
