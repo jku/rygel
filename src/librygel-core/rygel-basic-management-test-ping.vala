@@ -189,13 +189,9 @@ internal class Rygel.BasicManagementTestPing : BasicManagementTest {
     }
 
     protected override void finish_iteration () {
-        switch (this.init_state) {
-            case InitState.SPAWN_FAILED:
-                this.status = Status.ERROR_INTERNAL;
-                this.additional_info = "Failed to spawn ping";
-                break;
-            default:
-                break;
+        if (this.init_state == InitState.SPAWN_FAILED) {
+            this.status = Status.ERROR_INTERNAL;
+            this.additional_info = "Failed to spawn ping";
         }
 
         base.finish_iteration ();
@@ -204,11 +200,9 @@ internal class Rygel.BasicManagementTestPing : BasicManagementTest {
     protected override void handle_error (string line) {
         if (line.contains ("ping: unknown host")) {
             this.status = Status.ERROR_CANNOT_RESOLVE_HOSTNAME;
-            this.execution_state = ExecutionState.COMPLETED;
         } else if (line.contains ("ping:")) {
             this.status = Status.ERROR_OTHER;
             this.additional_info = line.substring ("ping:".length).strip ();
-            this.execution_state = ExecutionState.COMPLETED;
         }
     }
 
@@ -231,8 +225,6 @@ internal class Rygel.BasicManagementTestPing : BasicManagementTest {
             }
         } else if (this.state == ProcessState.RTT) {
             if (line.contains ("min/avg/max")) {
-                this.execution_state = ExecutionState.COMPLETED;
-
                 var rtt = line.split ("=", 2);
                 if (rtt.length >= 2) {
                     var rtt_values = rtt[1].split ("/", 4);
