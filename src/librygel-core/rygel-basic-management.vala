@@ -34,18 +34,19 @@ public class Rygel.BasicManagement : Service {
                         "urn:schemas-upnp-org:service:BasicManagement:2";
     public const string DESCRIPTION_PATH = "xml/BasicManagement2.xml";
 
+    public uint max_history_size { get; set; default = 10;}
+
     private HashMap<string, BasicManagementTest> tests_map;
-    private HashMap<string, BasicManagementTest> active_tests_map;
+    private HashMap<string, LinkedList<string>> test_ids_by_type;
 
-    private static uint current_id = 0;
-
-    protected string device_status;
+    private uint current_id;
+    private string device_status;
 
     public override void constructed () {
         base.constructed ();
 
         this.tests_map = new HashMap<string, BasicManagementTest> ();
-        this.active_tests_map = new HashMap<string, BasicManagementTest> ();
+        this.test_ids_by_type = new HashMap<string, LinkedList> ();
 
         var now = TimeVal ();
         now.tv_usec = 0;
@@ -83,55 +84,58 @@ public class Rygel.BasicManagement : Service {
                                         (this.cancel_test_cb);
     }
 
-    private string create_test_ids_list (bool active) {
+    private string create_test_ids_list (bool active_only) {
         string test_ids_list = "";
-        HashMap<string, BasicManagementTest> test_map;
 
-        if (active) {
-            test_map = this.active_tests_map;
-        } else {
-            test_map = this.tests_map;
-        }
+        foreach (var test in this.tests_map.values) {
+            if (active_only && !test.is_active())
+                continue;
 
-        foreach (string key in test_map.keys) {
-            if (test_ids_list == "") {
-                test_ids_list = key;
-            } else {
-                test_ids_list += "," + key;
-            }
+            if (test_ids_list.length > 0)
+                test_ids_list += ",";
+
+            test_ids_list += test.id;
         }
 
         return test_ids_list;
     }
 
-    private void update_test_ids_lists (BasicManagementTest bm_test) {
-        BasicManagementTest.ExecutionState execution_state = bm_test.execution_state;
+    private string add_test (BasicManagementTest test) {
+        this.current_id++;
+        test.id = this.current_id.to_string ();
 
-        if ((execution_state == BasicManagementTest.ExecutionState.REQUESTED) ||
-            (execution_state == BasicManagementTest.ExecutionState.IN_PROGRESS)) {
+        this.tests_map.set (test.id, test);
 
-            this.tests_map.set (bm_test.id, bm_test);
-            this.notify ("TestIDs", typeof (string),
-                         create_test_ids_list (false));
-
-            this.active_tests_map.set (bm_test.id, bm_test);
-            this.notify ("ActiveTestIDs", typeof (string),
-                         create_test_ids_list (true));
-        } else if ((execution_state == BasicManagementTest.ExecutionState.CANCELED) ||
-                   (execution_state == BasicManagementTest.ExecutionState.COMPLETED)) {
-            this.active_tests_map.unset (bm_test.id);
-            this.notify ("ActiveTestIDs", typeof (string),
-                         create_test_ids_list (true));
+        /* Add test to a list of ids of that method type (creating the list if needed) */
+        LinkedList<string> type_test_ids = this.test_ids_by_type[test.method_type];
+        if (type_test_ids == null) {
+            type_test_ids = new LinkedList<string> ();
+            this.test_ids_by_type.set (test.method_type, type_test_ids);
         }
+        type_test_ids.add (test.id);
+
+        /* remove oldest of same type, if needed */
+        if (type_test_ids.size > this.max_history_size) {
+            var old_id = type_test_ids.poll_head ();
+
+            try {
+                this.tests_map[old_id].cancel();
+            } catch (BasicManagementTestError e) {
+                /* test was not running, not a problem */
+            }
+            this.tests_map.unset (old_id);
+        }
+
+        this.notify ("TestIDs", typeof (string),
+                     create_test_ids_list (false));
+        this.notify ("ActiveTestIDs", typeof (string),
+                     create_test_ids_list (true));
+        return test.id;
     }
 
     private void add_test_and_return_action (BasicManagementTest bm_test,
                                              ServiceAction action) {
-        current_id++;
-
-        bm_test.id = current_id.to_string ();
-
-        update_test_ids_lists (bm_test);
+        var id = this.add_test (bm_test);
 
         /* TODO: decide if test should really execute now */
         bm_test.execute.begin ((obj,res) => {
@@ -140,36 +144,17 @@ public class Rygel.BasicManagement : Service {
             } catch (BasicManagementTestError e) {
                 /* already executing */
             }
-
-            update_test_ids_lists (bm_test);
+            this.notify ("ActiveTestIDs", typeof (string),
+                         create_test_ids_list (true));
         });
 
         action.set ("TestID",
                         typeof (string),
-                        bm_test.id);
+                        id);
 
         action.return ();
     }
 
-/*
-    /// TODO: NOT USED YET
-    private void remove_test (BasicManagementTest bm_test) {
-        bm_test
-        if (this.tests_map.unset (bm_test.id) == true) {
-            this.notify ("TestIDs", typeof (string),
-                         create_test_ids_list (false));
-        }
-
-        if (this.active_tests_map.unset (bm_test.id) == true) {
-            this.cancel();
-
-            this.notify ("ActiveTestIDs", typeof (string),
-                         create_test_ids_list (true));
-        }
-    }
-*/
-
-    // Error out if 'TestID' is wrong
     private bool ensure_test_exists (ServiceAction action,
                                      out BasicManagementTest bm_test) {
 
@@ -200,9 +185,7 @@ public class Rygel.BasicManagement : Service {
             action.return_error (708, _("Invalid Test State"));
 
             return false;
-        } else if ((action.get_name() == "CancelTest") &&
-                   ((bm_test.execution_state == BasicManagementTest.ExecutionState.CANCELED) ||
-                    (bm_test.execution_state == BasicManagementTest.ExecutionState.COMPLETED))) {
+        } else if ((action.get_name() == "CancelTest") && !bm_test.is_active()) {
             /// TestID is valid but the test can't be canceled
             action.return_error (709, _("State Precludes Cancel"));
 
@@ -551,6 +534,8 @@ public class Rygel.BasicManagement : Service {
         } catch (BasicManagementTestError e) {
             warning ("Canceled test was not running\n");
         }
+        /* ActiveTestIDs notification is handled by 
+         * the tests' execute callback */
 
         action.return ();
     }
