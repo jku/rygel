@@ -209,6 +209,11 @@ internal abstract class Rygel.BasicManagementTest : Object {
         return true;
     }
 
+    public bool is_active () {
+        return this.execution_state == ExecutionState.REQUESTED ||
+               this.execution_state == ExecutionState.IN_PROGRESS;
+    }
+
     public async virtual void execute () throws BasicManagementTestError {
         if (this.execution_state != ExecutionState.REQUESTED)
             throw new BasicManagementTestError.NOT_POSSIBLE
