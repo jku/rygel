@@ -126,14 +126,14 @@ internal class Rygel.BasicManagementTestPing : BasicManagementTest {
 
     public BasicManagementTestPing (string host,
                                     uint repeat_count,
+                                    uint32 interval_time_out,
                                     uint data_block_size,
-                                    uint dscp,
-                                    uint32 interval_time_out) {
+                                    uint dscp) {
         Object (host: host,
                 repeat_count: repeat_count,
+                interval_time_out: interval_time_out,
                 data_block_size: data_block_size,
-                dscp: dscp,
-                interval_time_out: interval_time_out);
+                dscp: dscp);
     }
 
     public override void constructed () {
