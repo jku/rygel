@@ -30,7 +30,7 @@ internal class Rygel.BasicManagementTestPing : BasicManagementTest {
     private static const uint DEFAULT_REPLY_TIMEOUT = 10000;
     private static const uint MIN_REQUEST_INTERVAL_TIMEOUT = 1000;
     private static const uint MAX_REQUEST_INTERVAL_TIMEOUT = 30000;
-    private static const uint DEFAULT_REQUEST_INTERVAL_TIMEOUT = 10000;
+    private static const uint DEFAULT_REQUEST_INTERVAL_TIMEOUT = 1000;
     private static const uint MIN_DATA_BLOCK_SIZE = 20;
     private static const uint MAX_DATA_BLOCK_SIZE = 2048;
     private static const uint DEFAULT_DATA_BLOCK_SIZE = 32;
