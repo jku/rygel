@@ -204,9 +204,9 @@ internal class Rygel.BasicManagementTestNSLookup : BasicManagementTest {
         this.additional_info = "";
         this.results = {};
 
-        this.command = { "nslookup" };
-        this.command += ("-timeout=%u").printf (this.interval_time_out/1000);
-        this.command += host_name;
+        this.command = { "nslookup",
+                         "-timeout=%u".printf (this.interval_time_out/1000),
+                         host_name };
         if (name_server != null && name_server.length > 0)
             this.command += name_server;
 
