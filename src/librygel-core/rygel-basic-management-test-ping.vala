@@ -148,13 +148,13 @@ internal class Rygel.BasicManagementTestPing : BasicManagementTest {
         this.min_response_time = 0;
         this.max_response_time = 0;
 
-        this.command = { "ping" };
-        this.command += ("-c %u").printf (repeat_count);
-        this.command += ("-W %u").printf (DEFAULT_REPLY_TIMEOUT/1000);
-        this.command += ("-i %u").printf (interval_time_out/1000);
-        this.command += ("-s %u").printf (data_block_size);
-        this.command += ("-Q %u").printf (dscp >> 2);
-        this.command += host;
+        this.command = { "ping",
+                         "-c", this.repeat_count.to_string (),
+                         "-W", (DEFAULT_REPLY_TIMEOUT / 1000).to_string (),
+                         "-i", (this.interval_time_out / 1000).to_string (),
+                         "-s", this.data_block_size.to_string (),
+                         "-Q", (this.dscp >> 2).to_string (),
+                         this.host };
 
         if (this.repeat_count > MAX_REPEAT_COUNT) {
             this.init_state = InitState.INVALID_PARAMETER;
