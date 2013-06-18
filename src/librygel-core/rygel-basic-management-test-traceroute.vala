@@ -38,6 +38,36 @@ internal class Rygel.BasicManagementTestTraceroute : BasicManagementTest {
     private static const uint MAX_HOSTS = 2048;
     private static const uint MAX_RESULT_SIZE = 4;
 
+    private enum ProcessState {
+        INIT,
+        HOPS,
+    }
+
+    private enum Status {
+        SUCCESS,
+        ERROR_CANNOT_RESOLVE_HOSTNAME,
+        ERROR_MAX_HOP_COUNT_EXCEEDED,
+        ERROR_INTERNAL,
+        ERROR_OTHER;
+
+        public string to_string() {
+            switch (this) {
+                case SUCCESS:
+                    return "Success";
+                case ERROR_CANNOT_RESOLVE_HOSTNAME:
+                    return "Error_CannotResolveHostName";
+                case ERROR_MAX_HOP_COUNT_EXCEEDED:
+                    return "Error_MaxHopCountExceeded";
+                case ERROR_INTERNAL:
+                    return "Error_Internal";
+                case ERROR_OTHER:
+                    return "Error_Other";
+                default:
+                    assert_not_reached();
+            }
+        }
+    }
+
     public string host { construct; get; default = ""; }
 
     private uint32 _wait_time_out;
@@ -84,7 +114,12 @@ internal class Rygel.BasicManagementTestTraceroute : BasicManagementTest {
         default = DEFAULT_DSCP;
     }
 
-    private string status;
+    private Regex regex;
+    private Regex rtt_regex;
+    private Status status;
+    private bool error_set;
+    private ProcessState state;
+    private string host_ip;
     private string additional_info;
     private uint32 response_time;
     private string hop_hosts;
@@ -107,7 +142,24 @@ internal class Rygel.BasicManagementTestTraceroute : BasicManagementTest {
     public override void constructed () {
         base.constructed ();
 
-        stdout.printf("*Traceroute* constructed()\n");
+        try {
+            this.regex = new Regex ("^\\s*(\\d+)\\s+(\\S+)\\s+(\\S+)\\s*(.*)$", 0, 0);
+            this.rtt_regex = new Regex ("(\\S+)\\s+ms\\b", 0, 0);
+        } catch (Error e) {
+            warning ("Failed to create Regexes '%s'", e.message);
+        }
+
+        this.state = ProcessState.INIT;
+        this.status = Status.ERROR_INTERNAL;
+        this.error_set = false;
+        this.hop_hosts = "";
+
+        this.command = { "traceroute",
+                         "-m", this.max_hop_count.to_string (),
+                         "-w", (this.wait_time_out / 1000).to_string (),
+                         "-t", (this.dscp >> 2).to_string (),
+                         this.host,
+                         this.data_block_size.to_string () };   
 
         /* Fail early if internal parameter limits are violated */
         if (this.wait_time_out < MIN_TIMEOUT ||
@@ -140,11 +192,107 @@ internal class Rygel.BasicManagementTestTraceroute : BasicManagementTest {
         }
     }
 
+    private void set_error (Status status, string info) {
+        this.error_set = true;
+        this.additional_info = info;
+        this.status = status;
+    }
+
+    protected override void handle_error (string line) {
+        if (line.contains ("Cannot handle \"host\" cmdline arg")) {
+            this.set_error (Status.ERROR_CANNOT_RESOLVE_HOSTNAME, "");
+        } else if (line.contains ("Network is unreachable")) {
+            this.set_error (Status.ERROR_OTHER, "Network is unreachable.");
+        } else {
+            this.set_error (Status.ERROR_INTERNAL, line);
+        }
+    }
+
+    protected override void handle_output (string line) {
+        string error = null;
+
+        line.strip ();
+        switch (this.state) {
+        case ProcessState.INIT:
+            if (line.contains ("traceroute to ")) {
+                this.state = ProcessState.HOPS;
+                var start = line.index_of_char('(');
+                var end = line.index_of_char(')', start);
+                if (end > start)
+                    this.host_ip = line.slice (start + 1, end);
+            } else {
+                warning ("traceroute parser: Unexpected line '%s'", line);
+            }
+            break;
+        case ProcessState.HOPS:
+            if (line.contains(" !H "))
+                error = "Host is unreachable.";
+            else if (line.contains(" !N "))
+                error = "Network is unreachable.";
+            else if (line.contains(" !P "))
+                error = "Protocol is unreachable.";
+            else if (line.contains(" !S "))
+                error = "Source route failed.";
+            else if (line.contains(" !F "))
+                error = "Fragmentation needed. ";
+            else if (line.contains(" !X "))
+                error = "Network blocks traceroute.";
+
+            if (error != null) {
+                /* should ERROR_CANNOT_RESOLVE_HOSTNAME be used for some errors ? */
+                this.set_error (Status.ERROR_OTHER, error);
+                return;
+            }
+            MatchInfo info;
+            if (!regex.match (line, 0, out info)) {
+                warning ("traceroute parser: Unexpected line '%s'", line);
+                return;
+            }
+
+            if (!this.error_set) {
+                if (info.fetch(3).contains (this.host_ip)) {
+                    this.status = Status.SUCCESS;
+                } else {
+                    /* set this error as placeholder: normally a later
+                     * handle_output() call will set status to SUCCESS */
+                    this.status = Status.ERROR_MAX_HOP_COUNT_EXCEEDED;
+                }
+            }
+
+            var host_name = info.fetch (2);
+            if (host_name == "*")
+                host_name = "";
+
+            var rtt_string = info.fetch (4);
+            rtt_regex.match (rtt_string, 0, out info);
+            var rtt_count = 0;
+            var rtt_average = 0.0;
+            try {
+                while (info.matches ()) {
+                    rtt_count++;
+                    rtt_average += double.parse (info.fetch (1));
+                    info.next ();
+                }
+            } catch (RegexError e) {
+                warning ("Regex error while parsing rtt values: %s", e.message);
+            }
+
+            if (rtt_count > 0)
+                rtt_average = rtt_average / rtt_count;
+
+            this.response_time = (uint) Math.round (rtt_average);
+            if (this.hop_hosts.length != 0)
+                this.hop_hosts += ",";
+            this.hop_hosts += host_name;
+
+            break;
+       default:
+            assert_not_reached ();
+        }
+    }
     public void get_results(out string status, out string additional_info,
                             out uint32 response_time, out string hop_hosts) {
-        stdout.printf("*Traceroute* get_results()\n");
-
-        status = this.status;
+        status = this.status.to_string ();
         additional_info = this.additional_info;
         response_time = this.response_time;
         hop_hosts = this.hop_hosts;

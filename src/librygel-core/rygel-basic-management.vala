@@ -407,7 +407,7 @@ public class Rygel.BasicManagement : Service {
                         typeof (uint32),
                         out wait_time_out,
                     "DataBlockSize",
-                        typeof (string),
+                        typeof (uint),
                         out data_block_size,
                     "MaxHopCount",
                         typeof (uint),
