@@ -182,12 +182,14 @@ public class Rygel.BasicManagement : Service {
                     (action.get_name() == "GetNSLookupResult") ||
                     (action.get_name() == "GetTracerouteResult"))) {
             /// TestID is valid but the test Results are not available
-            action.return_error (708, _("Invalid Test State"));
+            action.return_error (708, _("Invalid Test State '%s'").printf (
+                                        bm_test.execution_state.to_string()));
 
             return false;
         } else if ((action.get_name() == "CancelTest") && !bm_test.is_active()) {
             /// TestID is valid but the test can't be canceled
-            action.return_error (709, _("State Precludes Cancel"));
+            action.return_error (709, _("State '%s' Precludes Cancel").printf (
+                                        bm_test.execution_state.to_string ()));
 
             return false;
         }
