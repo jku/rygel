@@ -78,13 +78,6 @@ public class Rygel.MediaRendererPlugin : Rygel.Plugin {
                                      RenderingControl.DESCRIPTION_PATH,
                                      typeof (RenderingControl));
         this.add_resource (resource);
-
-        resource = new ResourceInfo (BasicManagement.UPNP_ID,
-                                     BasicManagement.UPNP_TYPE,
-                                     BasicManagement.DESCRIPTION_PATH,
-                                     typeof (BasicManagement));
-        this.add_resource (resource);
-
     }
 
     public virtual MediaPlayer? get_player () {
@@ -105,8 +98,7 @@ public class Rygel.MediaRendererPlugin : Rygel.Plugin {
                                       throws Error {
         string[] services = { AVTransport.UPNP_TYPE,
                               RenderingControl.UPNP_TYPE,
-                              ConnectionManager.UPNP_TYPE,
-                              BasicManagement.UPNP_TYPE };
+                              ConnectionManager.UPNP_TYPE };
         var v1_hacks = new V1Hacks (DMR, services);
         v1_hacks.apply_on_device (device, description_path);
     }
