@@ -97,15 +97,19 @@ internal abstract class Rygel.BasicManagementTest : Object {
     protected virtual void finish_iteration () {
         this.current_iteration++;
 
+        /* No more iterations if
+         *  - init failed, recovery is impossible or
+         *  - execution has been canceled,
+         *  - execution has ended prematurely (skip remaining iterations),
+         *  - the specified nr of iterations have been executed already
+         */
         if (this.init_state != InitState.OK ||
-            this.execution_state == ExecutionState.COMPLETED ||
-            this.current_iteration >= this.iterations) {
-            /* No more iterations if 
-             *  - init failed, recovery is impossible or
-             *  - execution has ended (remaining iterations should be skipped)
-             *  - the specified nr of iterations have been executed already
-             */
+            (this.current_iteration >= this.iterations &&
+             this.execution_state == ExecutionState.IN_PROGRESS)) {
             this.execution_state = ExecutionState.COMPLETED;
+        }
+
+        if (this.execution_state != ExecutionState.IN_PROGRESS) {
             this.async_callback ();
         } else {
             this.run_iteration ();
