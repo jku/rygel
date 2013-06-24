@@ -122,7 +122,7 @@ internal class Rygel.BasicManagementTestTraceroute : BasicManagementTest {
     private string host_ip;
     private string additional_info;
     private uint32 response_time;
-    private string hop_hosts;
+    private string hop_ips;
 
     public override string method_type { get { return "Traceroute"; } }
     public override string results_type { get { return "GetTracerouteResult"; } }
@@ -143,7 +143,7 @@ internal class Rygel.BasicManagementTestTraceroute : BasicManagementTest {
         base.constructed ();
 
         try {
-            this.regex = new Regex ("^\\s*(\\d+)\\s+(\\S+)\\s+(\\S+)\\s*(.*)$", 0, 0);
+            this.regex = new Regex ("^\\s*(\\d+)\\s+(\\S+)\\s*(.*)$", 0, 0);
             this.rtt_regex = new Regex ("(\\S+)\\s+ms\\b", 0, 0);
         } catch (Error e) {
             warning ("Failed to create Regexes '%s'", e.message);
@@ -152,12 +152,13 @@ internal class Rygel.BasicManagementTestTraceroute : BasicManagementTest {
         this.state = ProcessState.INIT;
         this.status = Status.ERROR_INTERNAL;
         this.error_set = false;
-        this.hop_hosts = "";
+        this.hop_ips = "";
 
         this.command = { "traceroute",
                          "-m", this.max_hop_count.to_string (),
                          "-w", (this.wait_time_out / 1000).to_string (),
                          "-t", (this.dscp >> 2).to_string (),
+                         "-n",
                          this.host,
                          this.data_block_size.to_string () };   
 
@@ -249,8 +250,9 @@ internal class Rygel.BasicManagementTestTraceroute : BasicManagementTest {
                 return;
             }
 
+            var ip_address = info.fetch (2);
             if (!this.error_set) {
-                if (info.fetch (3).contains (this.host_ip)) {
+                if (ip_address == this.host_ip) {
                     this.status = Status.SUCCESS;
                 } else {
                     /* set this error as placeholder: normally a later
@@ -259,11 +261,10 @@ internal class Rygel.BasicManagementTestTraceroute : BasicManagementTest {
                 }
             }
 
-            var host_name = info.fetch (2);
-            if (host_name == "*")
-                host_name = "";
+            if (ip_address == "*")
+                ip_address = "";
 
-            var rtt_string = info.fetch (4);
+            var rtt_string = info.fetch (3);
             rtt_regex.match (rtt_string, 0, out info);
             var rtt_count = 0;
             var rtt_average = 0.0;
@@ -281,9 +282,9 @@ internal class Rygel.BasicManagementTestTraceroute : BasicManagementTest {
                 rtt_average = rtt_average / rtt_count;
 
             this.response_time = (uint) Math.round (rtt_average);
-            if (this.hop_hosts.length != 0)
-                this.hop_hosts += ",";
-            this.hop_hosts += host_name;
+            if (this.hop_ips.length != 0)
+                this.hop_ips += ",";
+            this.hop_ips += ip_address;
 
             break;
        default:
@@ -291,10 +292,10 @@ internal class Rygel.BasicManagementTestTraceroute : BasicManagementTest {
         }
     }
     public void get_results(out string status, out string additional_info,
-                            out uint32 response_time, out string hop_hosts) {
+                            out uint32 response_time, out string hop_ips) {
         status = this.status.to_string ();
         additional_info = this.additional_info;
         response_time = this.response_time;
-        hop_hosts = this.hop_hosts;
+        hop_ips = this.hop_ips;
     }
 }
