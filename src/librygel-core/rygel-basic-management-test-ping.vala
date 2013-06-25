@@ -229,9 +229,9 @@ internal class Rygel.BasicManagementTestPing : BasicManagementTest {
                 if (rtt.length >= 2) {
                     var rtt_values = rtt[1].split ("/", 4);
                     if (rtt_values.length >= 3) {
-                        this.avg_response_time = (uint) Math.round (
-                                                  double.parse (rtt_values[0]));
                         this.min_response_time = (uint) Math.round (
+                                                  double.parse (rtt_values[0]));
+                        this.avg_response_time = (uint) Math.round (
                                                   double.parse (rtt_values[1]));
                         this.max_response_time = (uint) Math.round (
                                                   double.parse (rtt_values[2]));
