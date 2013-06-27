@@ -4,138 +4,6 @@
       <major>1</major>
       <minor>0</minor>
    </specVersion>
-   <serviceStateTable>
-      <stateVariable sendEvents="yes">
-         <name>DeviceStatus</name>
-         <dataType>string</dataType>
-      </stateVariable>
-
-      <stateVariable sendEvents="yes">
-         <name>TestIDs</name>
-         <dataType>string</dataType>
-         <defaultValue/>
-      </stateVariable>
-
-      <stateVariable sendEvents="yes">
-         <name>ActiveTestIDs</name>
-         <dataType>string</dataType>
-         <defaultValue/>
-      </stateVariable>
-
-      <stateVariable sendEvents="no">
-         <name>A_ARG_TYPE_String</name>
-         <dataType>string</dataType>
-      </stateVariable>
-
-      <stateVariable sendEvents="no">
-         <name>A_ARG_TYPE_UShort</name>
-         <dataType>ui2</dataType>
-      </stateVariable>
-
-      <stateVariable sendEvents="no">
-         <name>A_ARG_TYPE_UInt</name>
-         <dataType>ui4</dataType>
-      </stateVariable>
-
-      <stateVariable sendEvents="no">
-         <name>A_ARG_TYPE_DateTime</name>
-         <dataType>dateTime.tz</dataType>
-      </stateVariable>
-
-      <stateVariable sendEvents="no">
-         <name>A_ARG_TYPE_MSecs</name>
-         <dataType>ui4</dataType>
-      </stateVariable>
-
-      <stateVariable sendEvents="no">
-         <name>A_ARG_TYPE_TestID</name>
-         <dataType>ui4</dataType>
-      </stateVariable>
-
-      <stateVariable sendEvents="no">
-         <name>A_ARG_TYPE_TestType</name>
-         <dataType>string</dataType>
-         <allowedValueList>
-            <allowedValue>NSLookup</allowedValue>
-            <allowedValue>Ping</allowedValue>
-            <allowedValue>Traceroute</allowedValue>
-         </allowedValueList>
-      </stateVariable>
-
-      <stateVariable sendEvents="no">
-         <name>A_ARG_TYPE_TestState</name>
-         <dataType>string</dataType>
-         <allowedValueList>
-            <allowedValue>Requested</allowedValue>
-            <allowedValue>InProgress</allowedValue>
-            <allowedValue>Canceled</allowedValue>
-            <allowedValue>Completed</allowedValue>
-        </allowedValueList>
-      </stateVariable>
-
-      <stateVariable sendEvents="no">
-         <name>A_ARG_TYPE_DSCP</name>
-         <dataType>ui1</dataType>
-         <allowedValueRange>
-            <minimum>0</minimum>
-            <maximum>63</maximum>
-         </allowedValueRange>
-      </stateVariable>
-
-      <stateVariable sendEvents="no">
-         <name>A_ARG_TYPE_Host</name>
-         <dataType>string</dataType>
-      </stateVariable>
-
-      <stateVariable sendEvents="no">
-         <name>A_ARG_TYPE_Hosts</name>
-         <dataType>string</dataType>
-      </stateVariable>
-
-      <stateVariable sendEvents="no">
-         <name>A_ARG_TYPE_HostName</name>
-         <dataType>string</dataType>
-      </stateVariable>
-
-      <stateVariable sendEvents="no">
-         <name>A_ARG_TYPE_PingStatus</name>
-         <dataType>string</dataType>
-         <allowedValueList>
-            <allowedValue>Success</allowedValue>
-            <allowedValue>Error_CannotResolveHostName</allowedValue>
-            <allowedValue>Error_Internal</allowedValue>
-            <allowedValue>Error_Other</allowedValue>
-         </allowedValueList>
-      </stateVariable>
-
-      <stateVariable sendEvents="no">
-         <name>A_ARG_TYPE_NSLookupStatus</name>
-         <dataType>string</dataType>
-         <allowedValueList>
-            <allowedValue>Success</allowedValue>
-            <allowedValue>Error_DNSServerNotResolved</allowedValue>
-            <allowedValue>Error_Internal</allowedValue>
-            <allowedValue>Error_Other</allowedValue>
-         </allowedValueList>
-      </stateVariable>
-
-      <stateVariable sendEvents="no">
-         <name>A_ARG_TYPE_NSLookupResult</name>
-         <dataType>string</dataType>
-      </stateVariable>
-
-      <stateVariable sendEvents="no">
-         <name>A_ARG_TYPE_TracerouteStatus</name>
-         <dataType>string</dataType>
-         <allowedValueList>
-            <allowedValue>Success</allowedValue>
-            <allowedValue>Error_CannotResolveHostName</allowedValue>
-            <allowedValue>Error_MaxHopCountExceeded</allowedValue>
-            <allowedValue>Error_Internal</allowedValue>
-            <allowedValue>Error_Other</allowedValue>
-         </allowedValueList>
-      </stateVariable>
-   </serviceStateTable>
 
    <actionList>
       <action>
@@ -414,4 +282,137 @@
         </argumentList>
       </action>
    </actionList>
+
+   <serviceStateTable>
+      <stateVariable sendEvents="yes">
+         <name>DeviceStatus</name>
+         <dataType>string</dataType>
+      </stateVariable>
+
+      <stateVariable sendEvents="yes">
+         <name>TestIDs</name>
+         <dataType>string</dataType>
+         <defaultValue/>
+      </stateVariable>
+
+      <stateVariable sendEvents="yes">
+         <name>ActiveTestIDs</name>
+         <dataType>string</dataType>
+         <defaultValue/>
+      </stateVariable>
+
+      <stateVariable sendEvents="no">
+         <name>A_ARG_TYPE_String</name>
+         <dataType>string</dataType>
+      </stateVariable>
+
+      <stateVariable sendEvents="no">
+         <name>A_ARG_TYPE_UShort</name>
+         <dataType>ui2</dataType>
+      </stateVariable>
+
+      <stateVariable sendEvents="no">
+         <name>A_ARG_TYPE_UInt</name>
+         <dataType>ui4</dataType>
+      </stateVariable>
+
+      <stateVariable sendEvents="no">
+         <name>A_ARG_TYPE_DateTime</name>
+         <dataType>dateTime.tz</dataType>
+      </stateVariable>
+
+      <stateVariable sendEvents="no">
+         <name>A_ARG_TYPE_MSecs</name>
+         <dataType>ui4</dataType>
+      </stateVariable>
+
+      <stateVariable sendEvents="no">
+         <name>A_ARG_TYPE_TestID</name>
+         <dataType>ui4</dataType>
+      </stateVariable>
+
+      <stateVariable sendEvents="no">
+         <name>A_ARG_TYPE_TestType</name>
+         <dataType>string</dataType>
+         <allowedValueList>
+            <allowedValue>NSLookup</allowedValue>
+            <allowedValue>Ping</allowedValue>
+            <allowedValue>Traceroute</allowedValue>
+         </allowedValueList>
+      </stateVariable>
+
+      <stateVariable sendEvents="no">
+         <name>A_ARG_TYPE_TestState</name>
+         <dataType>string</dataType>
+         <allowedValueList>
+            <allowedValue>Requested</allowedValue>
+            <allowedValue>InProgress</allowedValue>
+            <allowedValue>Canceled</allowedValue>
+            <allowedValue>Completed</allowedValue>
+        </allowedValueList>
+      </stateVariable>
+
+      <stateVariable sendEvents="no">
+         <name>A_ARG_TYPE_DSCP</name>
+         <dataType>ui1</dataType>
+         <allowedValueRange>
+            <minimum>0</minimum>
+            <maximum>63</maximum>
+         </allowedValueRange>
+      </stateVariable>
+
+      <stateVariable sendEvents="no">
+         <name>A_ARG_TYPE_Host</name>
+         <dataType>string</dataType>
+      </stateVariable>
+
+      <stateVariable sendEvents="no">
+         <name>A_ARG_TYPE_Hosts</name>
+         <dataType>string</dataType>
+      </stateVariable>
+
+      <stateVariable sendEvents="no">
+         <name>A_ARG_TYPE_HostName</name>
+         <dataType>string</dataType>
+      </stateVariable>
+
+      <stateVariable sendEvents="no">
+         <name>A_ARG_TYPE_PingStatus</name>
+         <dataType>string</dataType>
+         <allowedValueList>
+            <allowedValue>Success</allowedValue>
+            <allowedValue>Error_CannotResolveHostName</allowedValue>
+            <allowedValue>Error_Internal</allowedValue>
+            <allowedValue>Error_Other</allowedValue>
+         </allowedValueList>
+      </stateVariable>
+
+      <stateVariable sendEvents="no">
+         <name>A_ARG_TYPE_NSLookupStatus</name>
+         <dataType>string</dataType>
+         <allowedValueList>
+            <allowedValue>Success</allowedValue>
+            <allowedValue>Error_DNSServerNotResolved</allowedValue>
+            <allowedValue>Error_Internal</allowedValue>
+            <allowedValue>Error_Other</allowedValue>
+         </allowedValueList>
+      </stateVariable>
+
+      <stateVariable sendEvents="no">
+         <name>A_ARG_TYPE_NSLookupResult</name>
+         <dataType>string</dataType>
+      </stateVariable>
+
+      <stateVariable sendEvents="no">
+         <name>A_ARG_TYPE_TracerouteStatus</name>
+         <dataType>string</dataType>
+         <allowedValueList>
+            <allowedValue>Success</allowedValue>
+            <allowedValue>Error_CannotResolveHostName</allowedValue>
+            <allowedValue>Error_MaxHopCountExceeded</allowedValue>
+            <allowedValue>Error_Internal</allowedValue>
+            <allowedValue>Error_Other</allowedValue>
+         </allowedValueList>
+      </stateVariable>
+   </serviceStateTable>
 </scpd>
